@@ -11,6 +11,7 @@ export type ErrorCode =
   | 'IDEMPOTENCY_CONFLICT'
   | 'SELF_RECIPIENT'
   | 'SELF_TRANSFER'
+  | 'SERVICE_UNAVAILABLE'
   | 'INTERNAL_ERROR';
 
 export interface ErrorDetail {
