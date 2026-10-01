@@ -31,11 +31,11 @@ describe('getMe', () => {
       user: { id: 'user-alice', name: 'Alice Demo', email: 'alice@demo.local', createdAt: '2026-10-01T00:00:00.000Z' },
       account: { id: 'acc-alice', currency: 'BRL', balanceCents: 100000 },
     });
-    expect(Object.keys(r).sort()).toEqual(['account', 'user']);
+    expect(Object.keys(r!).sort()).toEqual(['account', 'user']);
   });
 
   it('getMe de Bruno não contém dados de Alice', () => {
-    const r = getMe(db, 'user-bruno');
+    const r = getMe(db, 'user-bruno')!;
     expect(JSON.stringify(r)).not.toContain('alice');
     expect(r.account.balanceCents).toBe(25000);
   });

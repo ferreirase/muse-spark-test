@@ -6,7 +6,7 @@ import { openDatabase } from './db/connection.js';
 import { migrate } from './db/migrate.js';
 import { buildApp } from './app.js';
 import { defaultClock } from './shared/clock.js';
-import { createWorker } from './modules/worker/worker.js';
+import { createWorker, type Worker } from './modules/worker/worker.js';
 import { createPauseRegistry } from './modules/test-controls/pause-registry.js';
 
 const config = loadConfig();
@@ -15,7 +15,7 @@ migrate(db);
 
 const pauseRegistry = createPauseRegistry();
 let wake = (): void => undefined;
-let getWorker = () => {
+let getWorker: () => Worker = () => {
   throw new Error('worker ainda não criado');
 };
 const app = await buildApp({

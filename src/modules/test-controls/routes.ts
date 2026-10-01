@@ -35,7 +35,9 @@ export const testControlsPlugin: FastifyPluginAsync<TestControlsDeps> = async (s
   };
 
   scope.addHook('onRequest', async (request) => {
-    gate(request.headers['x-test-control-token']);
+    const raw = request.headers['x-test-control-token'];
+    const provided = Array.isArray(raw) ? raw[0] : raw;
+    gate(provided);
   });
 
   scope.post('/__test/reset', {

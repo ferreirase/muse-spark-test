@@ -42,7 +42,10 @@ const ledgerCount = (id: string, type?: string) =>
   (db.prepare(type ? 'SELECT COUNT(*) c FROM ledger_entries WHERE transfer_id=? AND type=?' : 'SELECT COUNT(*) c FROM ledger_entries WHERE transfer_id=?').get(...(type ? [id, type] : [id])) as { c: number }).c;
 
 const baseDeps = (over: Partial<Parameters<typeof runSaga>[0]> = {}) => ({
-  db, clock: NOW, sleep: noSleep, random: () => 0, ...over,
+  db,
+  clock: NOW,
+  retry: { sleep: noSleep, random: () => 0 },
+  ...over,
 });
 
 describe('runSaga', () => {
@@ -125,7 +128,7 @@ describe('runSaga', () => {
     const file = join(dir, 's.sqlite');
     db.close();
     const db2 = openDatabase(file);
-    const out = await runSaga({ db: db2, clock: NOW, sleep: noSleep, random: () => 0 }, 't1');
+    const out = await runSaga({ db: db2, clock: NOW, retry: { sleep: noSleep, random: () => 0 } }, 't1');
     expect(out).toBe('COMPLETED');
     const one = (sql: string, ...a: unknown[]) => (db2.prepare(sql).get(...a) as { c: number }).c;
     expect(one('SELECT COUNT(*) c FROM ledger_entries WHERE transfer_id=? AND type=?', 't1', 'DEBIT')).toBe(1);

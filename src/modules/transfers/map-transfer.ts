@@ -8,9 +8,10 @@ export interface TransferRow {
   note: string | null;
   status: string;
   failure_code: string | null;
+  idempotency_key: string;
+  payload_fingerprint: string;
   created_at: string;
   updated_at: string;
-  recipient_name?: string;
 }
 
 /** Mapeamento único da linha SQL para o DTO Transfer do contrato. */

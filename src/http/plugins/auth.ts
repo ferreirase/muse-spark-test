@@ -9,6 +9,9 @@ declare module 'fastify' {
   interface FastifyRequest {
     auth: AuthContext;
   }
+  interface FastifyInstance {
+    requireAuth: (request: FastifyRequest) => Promise<void>;
+  }
 }
 
 export interface AuthPluginDeps {
