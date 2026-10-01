@@ -15,7 +15,8 @@
     "test": "vitest run",
     "db:migrate": "tsx src/db/cli.ts migrate",
     "db:seed": "tsx src/db/cli.ts seed",
-    "db:reset": "tsx src/db/cli.ts reset"
+    "db:reset": "tsx src/db/cli.ts reset",
+    "openapi": "tsx scripts/build-openapi.ts"
   },
   "dependencies": {
     "@fastify/cookie": "11.1.2",
