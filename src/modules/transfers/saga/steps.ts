@@ -102,14 +102,24 @@ export function creditStep(db: Database.Database, transferId: string, now: Date)
   return step.immediate(transferId);
 }
 
-/** DEBITED → COMPENSATING: registra falha definitiva antes do crédito. */
-export function markCompensating(db: Database.Database, transferId: string, reason: string, now: Date): StepResult {
+/**
+ * DEBITED → COMPENSATING: registra falha definitiva antes do crédito.
+ * `consume` executa DENTRO da mesma transação (ex.: consumir fault de teste).
+ */
+export function markCompensating(
+  db: Database.Database,
+  transferId: string,
+  reason: string,
+  now: Date,
+  consume?: () => void,
+): StepResult {
   const step = db.transaction((t: string): StepResult => {
     const guard = db
       .prepare(
         "UPDATE transfers SET saga_step='COMPENSATING', status='PROCESSING', last_error=?, updated_at=? WHERE id=? AND saga_step='DEBITED'",
       )
       .run(reason, now.toISOString(), t);
+    if (guard.changes > 0) consume?.();
     return guard.changes > 0 ? 'APPLIED' : 'ALREADY_APPLIED';
   });
   return step.immediate(transferId);

@@ -72,6 +72,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     registerTestControlsRoutes(app, {
       config,
       db: deps.db,
+      clock: deps.clock,
       getWorker: deps.getWorker,
       registry: deps.pauseRegistry,
     });

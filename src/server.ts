@@ -8,6 +8,7 @@ import { buildApp } from './app.js';
 import { defaultClock } from './shared/clock.js';
 import { createWorker, type Worker } from './modules/worker/worker.js';
 import { createPauseRegistry } from './modules/test-controls/pause-registry.js';
+import { createFaultHooks } from './modules/test-controls/faults.js';
 
 const config = loadConfig();
 const db = openDatabase(config.databasePath);
@@ -32,6 +33,9 @@ const worker = createWorker({
   clock: defaultClock,
   pollIntervalMs: config.workerPollIntervalMs,
   pauseRegistry,
+  hooks: config.testControls.enabled
+    ? createFaultHooks({ db, clock: defaultClock, registry: pauseRegistry })
+    : undefined,
   logger: {
     info: (obj, msg) => app.log.info(obj, msg),
     warn: (obj, msg) => app.log.warn(obj, msg),

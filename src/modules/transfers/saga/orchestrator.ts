@@ -12,12 +12,15 @@ export interface TransferSnapshot {
   sourceAccountId: string;
   recipientAccountId: string;
   amountCents: number;
+  idempotencyKey: string;
 }
 
 /** Pontos de extensão para os controles de teste (no-op em produção). */
 export interface SagaHooks {
-  afterDebit?: (transfer: TransferSnapshot) => Promise<void>;
+  afterDebit?: (transfer: TransferSnapshot, signal?: AbortSignal) => Promise<void>;
   beforeCredit?: (transfer: TransferSnapshot) => Promise<'FAIL' | 'CONTINUE'>;
+  /** Executado dentro da transação de markCompensating (consumo de fault). */
+  consumeOnCompensate?: (transfer: TransferSnapshot) => void;
 }
 
 export interface SagaLogger {
@@ -43,11 +46,11 @@ export interface RunSagaDeps {
 
 function readSnapshot(db: Database.Database, transferId: string): TransferSnapshot | null {
   const row = db
-    .prepare('SELECT id, saga_step, status, source_account_id, recipient_account_id, amount_cents FROM transfers WHERE id=?')
+    .prepare('SELECT id, saga_step, status, source_account_id, recipient_account_id, amount_cents, idempotency_key FROM transfers WHERE id=?')
     .get(transferId) as
     | {
         id: string; saga_step: string; status: string;
-        source_account_id: string; recipient_account_id: string; amount_cents: number;
+        source_account_id: string; recipient_account_id: string; amount_cents: number; idempotency_key: string;
       }
     | undefined;
   if (!row) return null;
@@ -58,6 +61,7 @@ function readSnapshot(db: Database.Database, transferId: string): TransferSnapsh
     sourceAccountId: row.source_account_id,
     recipientAccountId: row.recipient_account_id,
     amountCents: row.amount_cents,
+    idempotencyKey: row.idempotency_key,
   };
 }
 
@@ -103,11 +107,12 @@ export async function runSaga(deps: RunSagaDeps, transferId: string): Promise<Sa
           continue;
         }
         case 'DEBITED': {
-          if (hooks.afterDebit) await hooks.afterDebit(t);
+          if (hooks.afterDebit) await hooks.afterDebit(t, signal);
           if (signal?.aborted) return 'RETRY_LATER';
           const decision = (await hooks.beforeCredit?.(t)) ?? 'CONTINUE';
           if (decision === 'FAIL') {
-            await withRetry(() => markCompensating(db, transferId, 'fault FAIL_CREDIT_ONCE', clock()), retryOpts);
+            const consume = hooks.consumeOnCompensate ? () => hooks.consumeOnCompensate!(t) : undefined;
+            await withRetry(() => markCompensating(db, transferId, 'fault FAIL_CREDIT_ONCE', clock(), consume), retryOpts);
             continue;
           }
           try {
@@ -115,7 +120,8 @@ export async function runSaga(deps: RunSagaDeps, transferId: string): Promise<Sa
           } catch (err) {
             // falha definitiva de crédito (antes do commit) → compensar
             if (err instanceof Error && err.name === 'CreditFailedError') {
-              await withRetry(() => markCompensating(db, transferId, errText(err), clock()), retryOpts);
+              const consume = hooks.consumeOnCompensate ? () => hooks.consumeOnCompensate!(t) : undefined;
+              await withRetry(() => markCompensating(db, transferId, errText(err), clock(), consume), retryOpts);
               continue;
             }
             throw err;
