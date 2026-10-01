@@ -1,0 +1,1322 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Banco Demo API",
+    "version": "1.0.0",
+    "description": "Backend bancário demo (contrato-compartilhado v1.0). Sessão por cookie bank_session. Transferências assíncronas via Saga: POST → PENDING/PROCESSING → GET → COMPLETED/FAILED."
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:3001",
+      "description": "Backend local"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Saúde do app + SQLite",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "const": "ok"
+                    }
+                  },
+                  "required": [
+                    "status"
+                  ]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SQLite indisponível",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/signup": {
+      "post": {
+        "summary": "Cadastrar usuário + conta + sessão",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignupBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Criado + cookie bank_session (Set-Cookie)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResult"
+                }
+              }
+            },
+            "headers": {
+              "Set-Cookie": {
+                "description": "bank_session HttpOnly;SameSite=Lax;Path=/;Max-Age=86400",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ORIGIN_NOT_ALLOWED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "EMAIL_ALREADY_EXISTS",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/signin": {
+      "post": {
+        "summary": "Entrar (cria sessão)",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SigninBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK + cookie bank_session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResult"
+                }
+              }
+            },
+            "headers": {
+              "Set-Cookie": {
+                "description": "bank_session",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "INVALID_CREDENTIALS",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ORIGIN_NOT_ALLOWED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/signout": {
+      "post": {
+        "summary": "Sair (idempotente, sempre 204)",
+        "requestBody": {
+          "required": false,
+          "description": "Sem corpo; Content-Type json com corpo vazio é aceito."
+        },
+        "responses": {
+          "204": {
+            "description": "Saiu + cookie expirado"
+          },
+          "403": {
+            "description": "ORIGIN_NOT_ALLOWED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/me": {
+      "get": {
+        "summary": "Usuário + conta autenticados",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/accounts/me/balance": {
+      "get": {
+        "summary": "Saldo disponível da conta",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Balance"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/recipients/{accountId}": {
+      "get": {
+        "summary": "Consultar destinatário (só nome + ID)",
+        "parameters": [
+          {
+            "name": "accountId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Recipient"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "RECIPIENT_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "SELF_RECIPIENT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/contacts": {
+      "get": {
+        "summary": "Listar contatos (nickname, id)",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactsList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Salvar contato",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddContactBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Criado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Contact"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ORIGIN_NOT_ALLOWED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "RECIPIENT_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CONTACT_ALREADY_EXISTS",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "SELF_RECIPIENT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/transfers": {
+      "post": {
+        "summary": "Solicitar transferência (202 novo, 200 replay)",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Obrigatório. 8–128 chars [A-Za-z0-9._:-]. Escopo por conta remetente, sem expiração. Replay com mesmo payload → 200 + mesma operação; payload diferente → 409.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9._:-]{8,128}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestTransferBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Replay idempotente (mesmo ID, estado atual)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Transfer"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Aceita (PENDING)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Transfer"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ORIGIN_NOT_ALLOWED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "RECIPIENT_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "IDEMPOTENCY_CONFLICT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "SELF_TRANSFER",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "Histórico paginado (só enviadas)",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Inteiro 1–50, default 20",
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]{1,3}$",
+              "default": "20"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Cursor opaco da página anterior",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR (limit/cursor)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/transfers/{id}": {
+      "get": {
+        "summary": "Detalhe da transferência (só enviadas)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Transfer"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "TRANSFER_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bankSession": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "bank_session",
+        "description": "Sessão opaca HttpOnly, 24h. Signup/signin emitem Set-Cookie; signout expira."
+      }
+    },
+    "schemas": {
+      "User": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name",
+          "email",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Account": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "currency",
+          "balanceCents"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string",
+            "const": "BRL"
+          },
+          "balanceCents": {
+            "type": "integer"
+          }
+        }
+      },
+      "AuthResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "user",
+          "account"
+        ],
+        "properties": {
+          "user": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "name",
+              "email",
+              "createdAt"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string"
+              },
+              "createdAt": {
+                "type": "string"
+              }
+            }
+          },
+          "account": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "currency",
+              "balanceCents"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "currency": {
+                "type": "string",
+                "const": "BRL"
+              },
+              "balanceCents": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      },
+      "Balance": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "accountId",
+          "currency",
+          "balanceCents",
+          "updatedAt"
+        ],
+        "properties": {
+          "accountId": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string",
+            "const": "BRL"
+          },
+          "balanceCents": {
+            "type": "integer"
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        }
+      },
+      "Recipient": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "accountId",
+          "name"
+        ],
+        "properties": {
+          "accountId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "Contact": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "nickname",
+          "recipientAccountId",
+          "recipientName",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "nickname": {
+            "type": "string"
+          },
+          "recipientAccountId": {
+            "type": "string"
+          },
+          "recipientName": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        }
+      },
+      "ContactsList": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "nickname",
+                "recipientAccountId",
+                "recipientName",
+                "createdAt"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "nickname": {
+                  "type": "string"
+                },
+                "recipientAccountId": {
+                  "type": "string"
+                },
+                "recipientName": {
+                  "type": "string"
+                },
+                "createdAt": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "Transfer": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "sourceAccountId",
+          "recipientAccountId",
+          "recipientName",
+          "amountCents",
+          "currency",
+          "note",
+          "status",
+          "failureCode",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "sourceAccountId": {
+            "type": "string"
+          },
+          "recipientAccountId": {
+            "type": "string"
+          },
+          "recipientName": {
+            "type": "string"
+          },
+          "amountCents": {
+            "type": "integer"
+          },
+          "currency": {
+            "type": "string",
+            "const": "BRL"
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "PROCESSING",
+              "COMPLETED",
+              "FAILED"
+            ]
+          },
+          "failureCode": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "INSUFFICIENT_FUNDS",
+              "CREDIT_FAILED",
+              null
+            ]
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        }
+      },
+      "TransferPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "sourceAccountId",
+                "recipientAccountId",
+                "recipientName",
+                "amountCents",
+                "currency",
+                "note",
+                "status",
+                "failureCode",
+                "createdAt",
+                "updatedAt"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "sourceAccountId": {
+                  "type": "string"
+                },
+                "recipientAccountId": {
+                  "type": "string"
+                },
+                "recipientName": {
+                  "type": "string"
+                },
+                "amountCents": {
+                  "type": "integer"
+                },
+                "currency": {
+                  "type": "string",
+                  "const": "BRL"
+                },
+                "note": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "PENDING",
+                    "PROCESSING",
+                    "COMPLETED",
+                    "FAILED"
+                  ]
+                },
+                "failureCode": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "enum": [
+                    "INSUFFICIENT_FUNDS",
+                    "CREDIT_FAILED",
+                    null
+                  ]
+                },
+                "createdAt": {
+                  "type": "string"
+                },
+                "updatedAt": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "ApiError": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "error",
+          "requestId"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "code",
+              "message"
+            ],
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "field",
+                    "message"
+                  ],
+                  "properties": {
+                    "field": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "requestId": {
+            "type": "string"
+          }
+        }
+      },
+      "SignupBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "email",
+          "password"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "email": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 254
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 72
+          }
+        }
+      },
+      "SigninBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "email",
+          "password"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 254
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 72
+          }
+        }
+      },
+      "AddContactBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "nickname",
+          "recipientAccountId"
+        ],
+        "properties": {
+          "nickname": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60
+          },
+          "recipientAccountId": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "RequestTransferBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "recipientAccountId",
+          "amountCents"
+        ],
+        "properties": {
+          "recipientAccountId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "amountCents": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100000000
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 140
+          }
+        }
+      },
+      "RecipientParams": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "accountId"
+        ],
+        "properties": {
+          "accountId": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "TransferParams": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "ListTransfersQuery": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "limit": {
+            "type": "string",
+            "pattern": "^[0-9]{1,3}$"
+          },
+          "cursor": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "bankSession": []
+    }
+  ]
+}
