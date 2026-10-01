@@ -254,6 +254,10 @@ faults, pausa determinística sem sleeps).
 > mesmo arquivo, e a pausa determinística cobre o cenário
 > débito→crash→restart via fault `PAUSE_AFTER_DEBIT`.
 
+Comandos realmente executados na entrega e resultados: ver
+**[`docs/relatorio-execucao.md`](docs/relatorio-execucao.md)** (mapeamento
+B01–B10 → testes e o que ficou fora do escopo).
+
 ## 12. Segurança
 
 - Senha: **scrypt** (N=2¹⁴, r=8, p=1, 64 bytes) com salt aleatório por usuário
