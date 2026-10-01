@@ -18,6 +18,8 @@ export interface AppDeps {
   config: Config;
   db: Database.Database;
   clock: Clock;
+  /** worker.wake() — chamado quando uma transferência é aceita. */
+  onAccepted?: () => void;
 }
 
 const REDACT_PATHS = [
@@ -56,7 +58,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   await registerAuthRoutes(app, { config, db: deps.db, clock: deps.clock });
   registerAccountsRoutes(app, { db: deps.db });
   registerContactsRoutes(app, { db: deps.db, clock: deps.clock });
-  registerTransfersRoutes(app, { db: deps.db, clock: deps.clock });
+  registerTransfersRoutes(app, { db: deps.db, clock: deps.clock, onAccepted: deps.onAccepted });
 
   app.setErrorHandler((err, request, reply) => {
     const { statusCode, body } = toApiErrorResponse(err, request.id);
