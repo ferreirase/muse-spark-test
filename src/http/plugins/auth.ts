@@ -21,7 +21,7 @@ export interface AuthPluginDeps {
  * UNAUTHENTICATED (contrato §4).
  */
 export function registerAuthPlugin(app: FastifyInstance, deps: AuthPluginDeps): void {
-  app.decorateRequest('auth', null);
+  app.decorateRequest('auth', null as unknown as AuthContext);
   app.decorate('requireAuth', async function requireAuth(request: FastifyRequest) {
     const token = request.cookies[SESSION_COOKIE];
     const auth = authenticate(deps.db, token, deps.clock());
