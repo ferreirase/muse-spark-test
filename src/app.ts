@@ -12,6 +12,7 @@ import { registerAuthPlugin } from './http/plugins/auth.js';
 import { registerAuthRoutes } from './modules/auth/routes.js';
 import { registerAccountsRoutes } from './modules/accounts/routes.js';
 import { registerContactsRoutes } from './modules/contacts/routes.js';
+import { registerTransfersRoutes } from './modules/transfers/routes.js';
 
 export interface AppDeps {
   config: Config;
@@ -54,7 +55,8 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   await app.register(cookie);
   await registerAuthRoutes(app, { config, db: deps.db, clock: deps.clock });
   registerAccountsRoutes(app, { db: deps.db });
-  registerContactsRoutes(app, { db: deps.db });
+  registerContactsRoutes(app, { db: deps.db, clock: deps.clock });
+  registerTransfersRoutes(app, { db: deps.db, clock: deps.clock });
 
   app.setErrorHandler((err, request, reply) => {
     const { statusCode, body } = toApiErrorResponse(err, request.id);
