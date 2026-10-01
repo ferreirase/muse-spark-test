@@ -148,11 +148,36 @@ a { color: var(--accent); }
         <tr><th scope="row">Backend</th><td>95/100, cobertura 100/100, aprovado nos requisitos obrigatórios.</td></tr>
         <tr><th scope="row">Frontend</th><td>Não avaliado. A entrega e o pedido desta avaliação cobrem só o backend.</td></tr>
         <tr><th scope="row">Integração</th><td>Não verificada (não há frontend para o par).</td></tr>
-        <tr><th scope="row">Tempo, custo e tokens</th><td>Dados do OpenRouter, filtrados pelo modelo Muse Spark 1.3, na janela de 01/10/2026 22:18 a 02/10/2026 00:18 (GMT+2): US$ 53,62 de custo, 556 requisições, 108M tokens, 68,6% de cache hit e custo médio de US$ 0,50 por milhão de tokens. O gráfico mostra uso de cerca de 22:20 a 23:58, ou seja, aproximadamente 1h40 de implementação. O filtro é por modelo, então chamadas ao mesmo modelo feitas fora desta tarefa dentro da janela não podem ser separadas.</td></tr>
+        <tr><th scope="row">Tempo, custo e tokens</th><td>Dados do OpenRouter, filtrados pelo modelo Muse Spark 1.3, na janela de 01/10/2026 22:18 a 02/10/2026 00:18 (GMT+2): US$ 53,62 de custo, 556 requisições, 108M tokens, 68,6% de cache hit e custo médio de US$ 0,50 por milhão de tokens. O gráfico mostra uso de cerca de 22:20 a 23:58, ou seja, aproximadamente 1h40 de implementação. O filtro é por modelo, então chamadas ao mesmo modelo feitas fora desta tarefa dentro da janela não podem ser separadas. Velocidade e detalhes por requisição estão na seção "Velocidade e uso do modelo".</td></tr>
         <tr><th scope="row">Intervenções humanas</th><td>Não disponíveis. Durante a avaliação, nenhum arquivo do código avaliado foi alterado.</td></tr>
       </tbody>
     </table>
   </div>
+</section>
+
+<section>
+  <h2>Velocidade e uso do modelo</h2>
+  <p>O CSV exportado do OpenRouter (<code>openrouter_activity_2026-10-01.csv</code>) tem 154 requisições, de 23:25 a 23:57 (GMT+2). É uma amostra dos últimos 32 minutos da sessão. O dashboard conta 556 requisições e US$ 53,62 no total, então os números abaixo valem para esse trecho final, que reúne 28% das requisições e 31% do custo.</p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Métrica</th><th class="num">Valor</th><th>Como foi calculado</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Velocidade de geração</td><td class="num">81 tokens/s</td><td>Soma dos tokens de saída dividida pela soma do tempo de geração sem o tempo até o primeiro token. A mediana por requisição é 95 tokens/s.</td></tr>
+        <tr><td>Velocidade ponta a ponta</td><td class="num">23 tokens/s</td><td>Mesma soma de tokens dividida pelo tempo total de geração, contando a espera pelo primeiro token.</td></tr>
+        <tr><td>Tempo até o primeiro token</td><td class="num">4,8 s</td><td>Mediana. O p90 é 14,2 s e o máximo 59,1 s. Essa espera ocupa 72% do tempo total de geração.</td></tr>
+        <tr><td>Prompt por requisição</td><td class="num">281 mil tokens</td><td>Mediana, com mínimo de 248 mil e máximo de 306 mil.</td></tr>
+        <tr><td>Saída por requisição</td><td class="num">122 tokens</td><td>Mediana. A amostra inteira gerou 36.829 tokens de saída para 43 milhões de entrada, cerca de 1.170 tokens lidos por token gerado.</td></tr>
+        <tr><td>Cache</td><td class="num">77,9%</td><td>Fração dos tokens de prompt servidos pelo cache. O desconto foi de US$ 36,90, e o trecho custaria US$ 53,79 sem cache em vez de US$ 16,89.</td></tr>
+        <tr><td>Reasoning</td><td class="num">230 tokens</td><td>Soma em toda a amostra, presente em 4 das 154 requisições, mesmo com thinking configurado em high.</td></tr>
+        <tr><td>Custo por requisição</td><td class="num">US$ 0,11</td><td>Média da amostra.</td></tr>
+        <tr><td>Tempo esperando o modelo</td><td class="num">84%</td><td>O tempo de geração somado foi 27,1 min, dentro de um intervalo de 32,3 min entre a primeira e a última requisição.</td></tr>
+        <tr><td>Encerramento</td><td class="num">153 + 1</td><td>153 requisições terminaram em <code>tool_calls</code> e 1 em <code>stop</code>. Nenhuma foi cancelada, todas usaram streaming, com o provider Meta e a variante standard.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>O gargalo está na leitura do contexto. Cada chamada reenviou cerca de 280 mil tokens, o que explica a espera alta pelo primeiro token e o peso do cache no custo. A geração em si é rápida, e as respostas são curtas porque quase todas as chamadas apenas acionam ferramentas.</p>
 </section>
 
 <section>
