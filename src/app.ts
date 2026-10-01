@@ -13,6 +13,9 @@ import { registerAuthRoutes } from './modules/auth/routes.js';
 import { registerAccountsRoutes } from './modules/accounts/routes.js';
 import { registerContactsRoutes } from './modules/contacts/routes.js';
 import { registerTransfersRoutes } from './modules/transfers/routes.js';
+import { registerTestControlsRoutes } from './modules/test-controls/routes.js';
+import type { PauseRegistry } from './modules/test-controls/pause-registry.js';
+import type { Worker } from './modules/worker/worker.js';
 
 export interface AppDeps {
   config: Config;
@@ -20,6 +23,10 @@ export interface AppDeps {
   clock: Clock;
   /** worker.wake() — chamado quando uma transferência é aceita. */
   onAccepted?: () => void;
+  /** Acesso ao worker para os controles de teste (resolvido em call time). */
+  getWorker?: () => Worker;
+  /** Registry compartilhado com o worker para abortar sagas no reset. */
+  pauseRegistry?: PauseRegistry;
 }
 
 const REDACT_PATHS = [
@@ -59,6 +66,16 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   registerAccountsRoutes(app, { db: deps.db });
   registerContactsRoutes(app, { db: deps.db, clock: deps.clock });
   registerTransfersRoutes(app, { db: deps.db, clock: deps.clock, onAccepted: deps.onAccepted });
+
+  // Controles de teste: só existem com flag ligada (contrato §8)
+  if (config.testControls.enabled && deps.getWorker && deps.pauseRegistry) {
+    registerTestControlsRoutes(app, {
+      config,
+      db: deps.db,
+      getWorker: deps.getWorker,
+      registry: deps.pauseRegistry,
+    });
+  }
 
   app.setErrorHandler((err, request, reply) => {
     const { statusCode, body } = toApiErrorResponse(err, request.id);

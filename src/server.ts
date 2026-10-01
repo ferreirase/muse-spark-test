@@ -7,18 +7,31 @@ import { migrate } from './db/migrate.js';
 import { buildApp } from './app.js';
 import { defaultClock } from './shared/clock.js';
 import { createWorker } from './modules/worker/worker.js';
+import { createPauseRegistry } from './modules/test-controls/pause-registry.js';
 
 const config = loadConfig();
 const db = openDatabase(config.databasePath);
 migrate(db);
 
+const pauseRegistry = createPauseRegistry();
 let wake = (): void => undefined;
-const app = await buildApp({ config, db, clock: defaultClock, onAccepted: () => wake() });
+let getWorker = () => {
+  throw new Error('worker ainda não criado');
+};
+const app = await buildApp({
+  config,
+  db,
+  clock: defaultClock,
+  onAccepted: () => wake(),
+  getWorker: () => getWorker(),
+  pauseRegistry,
+});
 
 const worker = createWorker({
   db,
   clock: defaultClock,
   pollIntervalMs: config.workerPollIntervalMs,
+  pauseRegistry,
   logger: {
     info: (obj, msg) => app.log.info(obj, msg),
     warn: (obj, msg) => app.log.warn(obj, msg),
@@ -26,6 +39,7 @@ const worker = createWorker({
   },
 });
 wake = () => worker.wake();
+getWorker = () => worker;
 
 await app.listen({ port: config.port, host: config.host });
 worker.start(); // boot: libera locks antigos e retoma sagas incompletas

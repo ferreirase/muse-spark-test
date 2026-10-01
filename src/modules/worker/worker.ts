@@ -3,6 +3,7 @@ import type Database from 'better-sqlite3';
 import type { Clock } from '../../shared/clock.js';
 import { runSaga as defaultRunSaga, type RunSagaDeps } from '../transfers/saga/orchestrator.js';
 import { claimJob, findDueJobs, releaseAllLocks, rescheduleJob, type JobRow } from './job-repository.js';
+import type { PauseRegistry } from '../test-controls/pause-registry.js';
 
 export type RunSagaFn = (deps: RunSagaDeps, transferId: string) => Promise<'COMPLETED' | 'FAILED' | 'RETRY_LATER'>;
 
@@ -23,6 +24,10 @@ export interface WorkerDeps {
   runSaga?: RunSagaFn;
   logger?: WorkerLogger;
   retry?: RunSagaDeps['retry'];
+  /** Registro de sagas em voo para o reset abortar (test-controls). */
+  pauseRegistry?: PauseRegistry;
+  /** Hooks da Saga (faults de teste). */
+  hooks?: RunSagaDeps['hooks'];
 }
 
 const RESCHEDULE_BASE_MS = 200;
@@ -62,8 +67,13 @@ export function createWorker(deps: WorkerDeps) {
         if (!claimJob(db, job.id, workerId, nowIso, leaseMs)) continue;
 
         const p = (async () => {
+          const ac = new AbortController();
+          deps.pauseRegistry?.register(ac);
           try {
-            const outcome = await runSagaFn({ db, clock, logger: log as never, retry: deps.retry }, job.transfer_id);
+            const outcome = await runSagaFn(
+              { db, clock, logger: log as never, retry: deps.retry, signal: ac.signal, hooks: deps.hooks },
+              job.transfer_id,
+            );
             if (outcome === 'RETRY_LATER') {
               const attempts = job.attempts + 1;
               const delay = Math.min(RESCHEDULE_MAX_MS, RESCHEDULE_BASE_MS * 2 ** Math.min(attempts, 6));
@@ -77,6 +87,7 @@ export function createWorker(deps: WorkerDeps) {
             rescheduleJob(db, job.id, runAfter, msg);
             log.error({ transferId: job.transfer_id, err: msg }, 'worker: erro na saga');
           } finally {
+            deps.pauseRegistry?.unregister(ac);
             inflight.delete(job.transfer_id);
             if (!stopping) wakeInternal();
           }
