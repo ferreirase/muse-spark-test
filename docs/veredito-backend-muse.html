@@ -1,0 +1,289 @@
+<title>Veredito do backend Muse</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: relatório de auditoria em coluna única, placar no topo, evidência em tabelas roláveis */
+:root {
+  --bg: #f5f7fa;
+  --surface: #ffffff;
+  --fg: #16202b;
+  --muted: #586473;
+  --line: #d8dee6;
+  --accent: #1f4e8c;
+  --pass: #1d7a4b;
+  --partial: #9a6200;
+  --fail: #b3261e;
+  --pass-bg: #e3f3ea;
+  --partial-bg: #fbf0dc;
+  --fail-bg: #fbe5e3;
+  --font-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "Source Sans 3", "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1319; --surface: #151c24; --fg: #e5eaf0; --muted: #95a2b2; --line: #27313d;
+    --accent: #84aee6; --pass: #62c894; --partial: #e2aa4c; --fail: #f2837a;
+    --pass-bg: #15301f; --partial-bg: #33270f; --fail-bg: #3a1916;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1319; --surface: #151c24; --fg: #e5eaf0; --muted: #95a2b2; --line: #27313d;
+  --accent: #84aee6; --pass: #62c894; --partial: #e2aa4c; --fail: #f2837a;
+  --pass-bg: #15301f; --partial-bg: #33270f; --fail-bg: #3a1916;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 16px; line-height: 1.55;
+  padding-inline: 16px; padding-block: 40px 64px;
+}
+.wrap { max-width: 980px; margin: 0 auto; display: grid; gap: 48px; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; line-height: 1.15; }
+h1 { font-size: clamp(1.9rem, 4.5vw, 2.8rem); font-weight: 800; letter-spacing: -0.01em; }
+h2 { font-size: 1.45rem; font-weight: 700; }
+h3 { font-size: 1.05rem; font-weight: 700; }
+p { margin: 0; max-width: 68ch; }
+code, .mono { font-family: var(--font-mono); font-size: 0.86em; }
+code { background: color-mix(in srgb, var(--line) 55%, transparent); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+.eyebrow { font-family: var(--font-mono); font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+section { display: grid; gap: 16px; min-width: 0; }
+header { display: grid; gap: 14px; }
+.lede { color: var(--muted); font-size: 1.08rem; }
+
+/* Placar */
+.scoreboard {
+  display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 2fr); gap: 0;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
+}
+.score { padding: 28px; border-right: 1px solid var(--line); display: grid; align-content: center; gap: 8px; }
+.score .num { font-family: var(--font-display); font-weight: 800; font-size: 4.2rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.score .num small { font-size: 1.4rem; color: var(--muted); font-weight: 500; }
+.verdict { display: inline-block; font-family: var(--font-mono); font-weight: 600; font-size: 0.82rem; letter-spacing: 0.05em; padding: 6px 10px; border-radius: 6px; background: var(--pass-bg); color: var(--pass); justify-self: start; }
+.facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.fact { padding: 18px 22px; border-bottom: 1px solid var(--line); display: grid; gap: 4px; min-width: 0; }
+.fact:nth-child(odd) { border-right: 1px solid var(--line); }
+.fact:nth-last-child(-n+2) { border-bottom: 0; }
+.fact b { font-family: var(--font-display); font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+.fact span { color: var(--muted); font-size: 0.92rem; }
+
+/* Tabelas */
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+table { width: 100%; border-collapse: collapse; font-size: 0.94rem; }
+th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+th { font-family: var(--font-mono); font-size: 0.74rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 600; background: color-mix(in srgb, var(--line) 30%, var(--surface)); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--font-mono); white-space: nowrap; }
+td.id { font-family: var(--font-mono); font-weight: 600; white-space: nowrap; }
+tfoot td { font-weight: 700; font-family: var(--font-display); }
+.ev { min-width: 360px; }
+.pill { display: inline-block; font-family: var(--font-mono); font-size: 0.72rem; font-weight: 600; letter-spacing: 0.04em; padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
+.pill.pass { background: var(--pass-bg); color: var(--pass); }
+.pill.partial { background: var(--partial-bg); color: var(--partial); }
+.pill.fail { background: var(--fail-bg); color: var(--fail); }
+
+/* Achados */
+.findings { display: grid; gap: 12px; }
+.finding { display: grid; grid-template-columns: 6px minmax(0, 1fr); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.finding .stripe { background: var(--muted); }
+.finding.sev-media .stripe { background: var(--partial); }
+.finding.sev-baixa .stripe { background: var(--accent); }
+.finding .body { padding: 14px 18px; display: grid; gap: 6px; min-width: 0; }
+.finding .meta { font-family: var(--font-mono); font-size: 0.76rem; color: var(--muted); letter-spacing: 0.03em; overflow-wrap: anywhere; }
+
+ol.steps { margin: 0; padding-left: 1.3em; display: grid; gap: 10px; max-width: 72ch; }
+ul.plain { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; max-width: 72ch; }
+.checklist { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.checklist li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 8px; align-items: start; }
+.mark { font-family: var(--font-mono); font-weight: 700; }
+.mark.ok { color: var(--pass); }
+.mark.no { color: var(--muted); }
+pre { margin: 0; overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; font-family: var(--font-mono); font-size: 0.84rem; line-height: 1.6; }
+.note { color: var(--muted); font-size: 0.92rem; }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+@media (max-width: 720px) {
+  .scoreboard { grid-template-columns: minmax(0, 1fr); }
+  .score { border-right: 0; border-bottom: 1px solid var(--line); }
+  .facts { grid-template-columns: minmax(0, 1fr); }
+  .fact:nth-child(odd) { border-right: 0; }
+  .fact:nth-last-child(2) { border-bottom: 1px solid var(--line); }
+}
+</style>
+
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Banco Demo v1 · avaliação independente do backend · 02/10/2026</div>
+  <h1>Backend do Muse aprovado com 95 de 100</h1>
+  <p class="lede">Os seis critérios eliminatórios foram demonstrados por execução. A única falha encontrada está no signout: com <code>Content-Type: application/json</code> e corpo vazio, a rota responde 500 e a sessão continua válida. Todo o resto da rubrica passou, inclusive o crash com <code>kill -9</code> no meio da Saga.</p>
+</header>
+
+<div class="scoreboard" role="group" aria-label="Resultado">
+  <div class="score">
+    <div class="eyebrow">Nota do backend</div>
+    <div class="num">95<small>/100</small></div>
+    <span class="verdict">APROVADO NESTE BENCHMARK</span>
+  </div>
+  <div class="facts">
+    <div class="fact"><b>6 de 6</b><span>critérios eliminatórios demonstrados</span></div>
+    <div class="fact"><b>100 de 100</b><span>pontos possíveis verificados (cobertura total)</span></div>
+    <div class="fact"><b>69 de 71</b><span>checks de API passaram (uma falha real, no signout)</span></div>
+    <div class="fact"><b>378 ms</b><span>da reinicialização até COMPLETED após <code>kill -9</code></span></div>
+  </div>
+</div>
+
+<section>
+  <h2>Identificação</h2>
+  <div class="table-wrap">
+    <table>
+      <tbody>
+        <tr><th scope="row">Modelo e harness</th><td>Muse Spark 1.3 pelo provider OpenRouter, com o harness OpenCode. O dashboard do OpenRouter registra as chamadas pelo app liteLLM, com uma única API key. Reasoning em nível high e permissões automáticas (<code>--dangerously-skip-permissions</code>), ou seja, o agente executou comandos e editou arquivos sem pedir aprovação.</td></tr>
+        <tr><th scope="row">Código avaliado</th><td><code>a5faf96af4e0…99d0052</code> (SHA-256 dos arquivos do projeto, sem <code>node_modules</code>, <code>dist</code> e <code>data</code>). Não há repositório git.</td></tr>
+        <tr><th scope="row">Ambiente</th><td>Node v24.21.0, npm 11.19.0, Linux x86_64 (Pop!_OS, kernel 7.1.5), 20 CPUs, 30 GiB de RAM. Cópia isolada do projeto e arquivo SQLite exclusivo por execução, na porta 3101.</td></tr>
+        <tr><th scope="row">Backend</th><td>95/100, cobertura 100/100, aprovado nos requisitos obrigatórios.</td></tr>
+        <tr><th scope="row">Frontend</th><td>Não avaliado. A entrega e o pedido desta avaliação cobrem só o backend.</td></tr>
+        <tr><th scope="row">Integração</th><td>Não verificada (não há frontend para o par).</td></tr>
+        <tr><th scope="row">Tempo, custo e tokens</th><td>Dados do OpenRouter, filtrados pelo modelo Muse Spark 1.3, na janela de 01/10/2026 22:18 a 02/10/2026 00:18 (GMT+2): US$ 53,62 de custo, 556 requisições, 108M tokens, 68,6% de cache hit e custo médio de US$ 0,50 por milhão de tokens. O gráfico mostra uso de cerca de 22:20 a 23:58, ou seja, aproximadamente 1h40 de implementação. O filtro é por modelo, então chamadas ao mesmo modelo feitas fora desta tarefa dentro da janela não podem ser separadas.</td></tr>
+        <tr><th scope="row">Intervenções humanas</th><td>Não disponíveis. Durante a avaliação, nenhum arquivo do código avaliado foi alterado.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <h2>Critérios eliminatórios</h2>
+  <ul class="checklist">
+    <li><span class="mark ok" aria-hidden="true">✓</span><span>Fastify executa a API e o TypeScript compila: <code>npm ci</code>, <code>typecheck</code>, <code>build</code> e <code>test</code> terminaram com exit 0.</span></li>
+    <li><span class="mark ok" aria-hidden="true">✓</span><span>O SQLite em arquivo persiste estado após reinício. Usuário criado por signup, contatos e transferências sobreviveram a quatro reinícios, e o seed não foi reaplicado.</span></li>
+    <li><span class="mark ok" aria-hidden="true">✓</span><span>CQRS tem caminhos distintos. <code>POST /v1/transfers</code> chega em <code>commands/request-transfer.ts</code> e <code>GET /v1/accounts/me/balance</code> chega em <code>accounts/queries/get-balance.ts</code>.</span></li>
+    <li><span class="mark ok" aria-hidden="true">✓</span><span>A Saga usa commits locais separados, guarda o progresso em <code>transfers.saga_step</code> e na tabela <code>jobs</code>, e teve compensação e recuperação demonstradas por execução.</span></li>
+    <li><span class="mark ok" aria-hidden="true">✓</span><span>Autenticação e isolamento por usuário funcionam. O defeito do signout aparece só com uma combinação específica de cabeçalhos e não abre acesso a dados de outra conta. Por isso entrou como parcial em BE02, sem eliminar a entrega.</span></li>
+    <li><span class="mark ok" aria-hidden="true">✓</span><span>Nenhum saldo negativo, débito ou crédito duplicado. A soma de saldos com o valor em trânsito ficou em 125000 centavos em todos os cenários.</span></li>
+  </ul>
+</section>
+
+<section>
+  <h2>Evidência por item</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>ID</th><th>Resultado</th><th class="num">Pontos</th><th class="ev">Evidência</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="id">BE01</td><td><span class="pill pass">PASSA</span></td><td class="num">5/5</td><td><code>db:migrate</code>, <code>db:seed</code> e <code>db:reset</code> com exit 0 e soma 125000. <code>/health</code> responde <code>{"status":"ok"}</code>. Após restart, o usuário novo faz signin e Alice continua com 100000.</td></tr>
+        <tr><td class="id">BE02</td><td><span class="pill partial">PARCIAL</span></td><td class="num">5/10</td><td>Passam: trim de nome e lowercase de e-mail, 409 para e-mail equivalente, senha de 7 e 73 caracteres com 400, scrypt com salt, sessão gravada como SHA-256, expiração forçada no SQLite com 401, signin inválido com a mesma mensagem para e-mail existente e inexistente, cookie <code>HttpOnly; SameSite=Lax; Path=/; Max-Age=86400</code>, logs sem senha nem cookie. Falha: signout com sessão, <code>Content-Type: application/json</code> e <code>Content-Length: 0</code> responde 500, não expira o cookie e <code>GET /v1/me</code> continua 200 em seguida.</td></tr>
+        <tr><td class="id">BE03</td><td><span class="pill pass">PASSA</span></td><td class="num">10/10</td><td>Sete rotas privadas sem sessão retornam 401 <code>UNAUTHENTICATED</code>. Bruno abrindo uma transferência de Alice recebe 404 <code>TRANSFER_NOT_FOUND</code>. <code>sourceAccountId</code> e <code>balanceCents</code> extras recebem 400 e o saldo não muda. Origin estranha em POST recebe 403, e a origem do front passa. <code>Cache-Control: no-store</code> também nas respostas 401. Sem CORS.</td></tr>
+        <tr><td class="id">BE04</td><td><span class="pill pass">PASSA</span></td><td class="num">5/5</td><td>Contato Carla criado com 201 e <code>recipientName</code> "Carla Demo". Duplicata 409, própria conta 422, conta inexistente 404. Bruno vê lista vazia. Após restart, Alice lista "Bruno,Carla".</td></tr>
+        <tr><td class="id">BE05</td><td><span class="pill pass">PASSA</span></td><td class="num">5/5</td><td>Chaves dos DTOs idênticas ao contrato. O lookup retorna só <code>accountId</code> e <code>name</code>. Com <code>limit=2</code> e três <code>createdAt</code> iguais forçados no banco, sete transferências saíram em quatro páginas sem duplicata nem lacuna. Cursor inválido, <code>limit=0</code> e <code>limit=51</code> recebem 400.</td></tr>
+        <tr><td class="id">BE06</td><td><span class="pill pass">PASSA</span></td><td class="num">10/10</td><td>202 PENDING e COMPLETED em 54 ms. Saldos 89999, 35001 e 0 na API e no SQLite. Ledger com um DEBIT de −10001 em <code>acc-alice</code> e um CREDIT de +10001 em <code>acc-bruno</code>.</td></tr>
+        <tr><td class="id">BE07</td><td><span class="pill pass">PASSA</span></td><td class="num">5/5</td><td>Os valores 0, −1, 1.5, <code>"100"</code> e 100000001 recebem 400 com <code>field: amountCents</code>. Própria conta 422 <code>SELF_TRANSFER</code>, inexistente 404, <code>currency</code> extra 400. Nenhuma linha foi criada em <code>transfers</code> ou <code>jobs</code>. 100001 vira FAILED com <code>INSUFFICIENT_FUNDS</code>, sem ledger.</td></tr>
+        <tr><td class="id">BE08</td><td><span class="pill pass">PASSA</span></td><td class="num">10/10</td><td>Replay retorna 200 com o mesmo ID, inclusive com a nota diferindo só em espaços. Payload diferente recebe 409. Chave ausente, curta, com espaço ou com 129 caracteres recebe 400. A mesma chave usada por Bruno gera uma operação nova. Replay após restart com sessão nova funciona. Dez POSTs simultâneos geram um 202, nove 200, uma transferência, um DEBIT e um CREDIT.</td></tr>
+        <tr><td class="id">BE09</td><td><span class="pill pass">PASSA</span></td><td class="num">10/10</td><td>Três rodadas de duas transferências de 70000 em paralelo: uma COMPLETED e uma INSUFFICIENT_FUNDS em todas, Alice com 30000 e soma 125000. Créditos simultâneos para Carla somaram 15000, com Alice em 90000 e Bruno em 20000.</td></tr>
+        <tr><td class="id">BE10</td><td><span class="pill pass">PASSA</span></td><td class="num">10/10</td><td>Controles retornam 404 com a flag desligada e 403 com token errado. FAIL_CREDIT_ONCE leva a FAILED com <code>CREDIT_FAILED</code>, saldos 100000 e 25000, trânsito 0, um DEBIT de −10000 e uma COMPENSATION de +10000. Reabrir o job terminal no banco e reiniciar não gerou reembolso extra. No subcaso 6, um teste externo do orquestrador deixou Alice com 105000 e Bruno com 20000, então a compensação soma e não restaura snapshot. Em <code>steps.ts</code>, cada passo roda em sua própria transação <code>immediate</code>.</td></tr>
+        <tr><td class="id">BE11</td><td><span class="pill pass">PASSA</span></td><td class="num">10/10</td><td>Com PAUSE_AFTER_DEBIT, a transferência fica em PROCESSING com saldos 90000 e 25000 e trânsito de 10000. Depois do <code>kill -9</code> e do restart no mesmo arquivo, chegou a COMPLETED em 378 ms, com 90000 e 35000, trânsito 0 e um DEBIT e um CREDIT. Um novo restart com replay devolve o mesmo ID. Uma transferência pausada não bloqueia as outras.</td></tr>
+        <tr><td class="id">BE12</td><td><span class="pill pass">PASSA</span></td><td class="num">10/10</td><td>Nenhum <code>INSERT</code>, <code>UPDATE</code> ou <code>.run()</code> em <code>queries/</code>, e nenhum <code>prepare()</code> em arquivos de rota. Idempotência e passos únicos garantidos por <code>UNIQUE(source_account_id, idempotency_key)</code>, <code>UNIQUE(transfer_id, type)</code> e quatro triggers. Os 132 testes unitários usam SQLite real em arquivo. O OpenAPI 3.1 cobre as 10 rotas normais. As divergências entre documentação e execução são pequenas e aparecem nos achados abaixo.</td></tr>
+      </tbody>
+      <tfoot>
+        <tr><td colspan="2">Total</td><td class="num">95/100</td><td></td></tr>
+      </tfoot>
+    </table>
+  </div>
+</section>
+
+<section>
+  <h2>Achados, do mais grave ao mais leve</h2>
+  <div class="findings">
+    <article class="finding sev-media">
+      <div class="stripe" aria-hidden="true"></div>
+      <div class="body">
+        <h3>Signout com JSON vazio responde 500 e mantém a sessão ativa</h3>
+        <p>O hook <code>preParsing</code> do signout troca o corpo vazio por <code>{}</code>, mas o <code>Content-Length</code> continua 0. O Fastify lança <code>FST_ERR_CTP_INVALID_CONTENT_LENGTH</code> antes do handler, e o usuário fica logado. Esse é justamente o caso que o comentário do código diz tratar, e o contrato prevê um proxy repassando o cabeçalho.</p>
+        <div class="meta">Severidade média · src/modules/auth/routes.ts:54 · reproduzir: POST /v1/auth/signout com cookie válido, Content-Type: application/json, Content-Length: 0</div>
+      </div>
+    </article>
+    <article class="finding sev-baixa">
+      <div class="stripe" aria-hidden="true"></div>
+      <div class="body">
+        <h3>Erros 4xx do Fastify fora do mapeamento viram 500</h3>
+        <p>No log do caso acima, o erro chegou com <code>statusCode: 400</code> e saiu como 500 <code>INTERNAL_ERROR</code>. O mapeador só reconhece alguns códigos <code>FST_ERR_CTP_*</code>, então outros erros de transporte do cliente aparecem como falha do servidor.</p>
+        <div class="meta">Severidade baixa · error handler em src/http/plugins/errors.ts</div>
+      </div>
+    </article>
+    <article class="finding sev-baixa">
+      <div class="stripe" aria-hidden="true"></div>
+      <div class="body">
+        <h3>O seed reutiliza um único hash para as três contas demo</h3>
+        <p>Alice, Bruno e Carla têm o mesmo <code>password_hash</code>, com o mesmo salt. Usuários criados por signup recebem salt próprio, então o critério de hash com salt se mantém. O efeito é só no seed.</p>
+        <div class="meta">Severidade baixa · src/db/seed.ts:56</div>
+      </div>
+    </article>
+    <article class="finding sev-baixa">
+      <div class="stripe" aria-hidden="true"></div>
+      <div class="body">
+        <h3>O consumo do FAIL_CREDIT_ONCE fica fora da transação de compensação</h3>
+        <p>A falha injetada é marcada como consumida numa transação e o estado COMPENSATING é gravado em outra. Se o processo morrer entre as duas, a retomada credita normalmente e a falha armada se perde. O próprio código documenta a janela, e ela afeta só o controle de teste.</p>
+        <div class="meta">Severidade baixa · src/modules/test-controls/fault-hooks.ts:58</div>
+      </div>
+    </article>
+    <article class="finding sev-baixa">
+      <div class="stripe" aria-hidden="true"></div>
+      <div class="body">
+        <h3>A validação do corpo roda antes da autenticação</h3>
+        <p>Uma requisição sem sessão e com corpo inválido recebe 400 em vez de 401. Com corpo válido, o 401 aparece como o contrato pede.</p>
+        <div class="meta">Severidade baixa · ordem do ciclo do Fastify (validação antes do preHandler)</div>
+      </div>
+    </article>
+    <article class="finding">
+      <div class="stripe" aria-hidden="true"></div>
+      <div class="body">
+        <h3>Manutenção e documentação</h3>
+        <p>Os controles de teste são ligados ao servidor por variáveis em <code>globalThis</code>, com 10 ocorrências fora dos testes. O <code>insertCreatedTransfer</code> de <code>steps.ts</code> repete o INSERT do comando. O <code>RELATORIO.md</code> fala em 30 arquivos de teste, e a execução mostrou 29, com os mesmos 132 testes. O mesmo relatório data os comandos finais em "~23:49 UTC", mas o arquivo foi salvo às 23:56 GMT+2 e o uso no OpenRouter termina perto de 23:58 GMT+2, então o horário está em GMT+2 com o fuso rotulado errado. O <code>/health</code> usa o código <code>SERVICE_UNAVAILABLE</code>, que não está no catálogo do contrato, mas o README declara isso.</p>
+        <div class="meta">Sem severidade funcional</div>
+      </div>
+    </article>
+  </div>
+</section>
+
+<section>
+  <h2>Três ajustes prioritários</h2>
+  <ol class="steps">
+    <li>Fazer o signout aceitar corpo vazio sem reescrever o stream (por exemplo, com um parser de conteúdo tolerante só nessa rota) e mapear no error handler qualquer erro do Fastify com <code>statusCode</code> 4xx para 400 <code>VALIDATION_ERROR</code>.</li>
+    <li>Rever a política de testes só unitários. O defeito do signout existe apenas na camada HTTP, que essa política deixou sem cobertura. Alguns testes de rota com <code>fastify.inject</code> teriam pegado o problema. A decisão é do dono do projeto.</li>
+    <li>Gravar o consumo do FAIL_CREDIT_ONCE na mesma transação do <code>markCompensating</code> e trocar o <code>globalThis</code> por injeção de dependência no <code>buildApp</code>.</li>
+  </ol>
+</section>
+
+<section>
+  <h2>Como reproduzir</h2>
+  <p>A avaliação rodou numa cópia do projeto. Instalação e verificação estática:</p>
+<pre>npm ci
+npm run typecheck   # exit 0
+npm run build       # exit 0
+npm test            # 29 arquivos, 132 testes, exit 0</pre>
+  <p>Os cenários de API usaram três scripts externos que não alteram o código avaliado. <code>harness.mjs</code> sobe <code>node dist/server.js</code> com um <code>DATABASE_PATH</code> temporário e controles de teste ligados, executa os 71 checks de BE01 a BE11 com requisições HTTP reais, mata o processo com <code>SIGKILL</code> no cenário de crash e confere saldos e ledger direto no SQLite. <code>probe.mjs</code> isola o defeito do signout. <code>eval-be10-6.ts</code> roda o subcaso de compensação com outras operações chamando o orquestrador direto, como a rubrica permite quando os dois modos de falha não podem ser combinados pela API.</p>
+  <p class="note">Resultado bruto do harness: 69 checks passaram e 2 falharam. Um deles é o signout. O outro foi um check do próprio avaliador, que esperava hashes distintos no seed; ele não faz parte da rubrica e aparece aqui só como achado de severidade baixa.</p>
+</section>
+
+<section>
+  <h2>Lista final de decisão</h2>
+  <ul class="checklist">
+    <li><span class="mark ok" aria-hidden="true">✓</span><span>Jornadas obrigatórias do backend executadas pela API.</span></li>
+    <li><span class="mark ok" aria-hidden="true">✓</span><span>Estado financeiro persistido e reconciliado: soma de 125000 em todos os cenários e ledger coerente com os saldos.</span></li>
+    <li><span class="mark ok" aria-hidden="true">✓</span><span>CQRS confirmado por inspeção do código.</span></li>
+    <li><span class="mark ok" aria-hidden="true">✓</span><span>Saga confirmada nos três caminhos: sucesso, compensação e crash com recuperação.</span></li>
+    <li><span class="mark ok" aria-hidden="true">✓</span><span>Idempotência e disputa por saldo demonstradas, inclusive com requisições simultâneas.</span></li>
+    <li><span class="mark no" aria-hidden="true">–</span><span>Frontend validado em browser: não se aplica a esta avaliação.</span></li>
+    <li><span class="mark no" aria-hidden="true">–</span><span>Resultado desconhecido e retry no frontend: não se aplica. A deduplicação do lado do servidor foi verificada em BE08.</span></li>
+    <li><span class="mark no" aria-hidden="true">–</span><span>Integração do par: não verificada.</span></li>
+    <li><span class="mark ok" aria-hidden="true">✓</span><span>Nota e cobertura do backend apresentadas separadamente.</span></li>
+    <li><span class="mark ok" aria-hidden="true">✓</span><span>Passos de reprodução e localização dos defeitos registrados nesta página.</span></li>
+  </ul>
+  <p class="note">Esta avaliação mede o escopo local definido pelo PRD e pelo contrato. Ela não atesta que o sistema esteja pronto para produção.</p>
+</section>
+
+</div>
