@@ -1,0 +1,50 @@
+---
+id: MT-28
+title: "Plugin /__test: gate por flag/token e POST /__test/reset"
+status: Done
+priority: medium
+labels:
+  - test-controls
+  - security
+  - unit-tests
+parent: MT-7
+dependencies:
+  - MT-17
+  - MT-27
+created_at: 2026-10-01T20:11:40.593Z
+updated_at: 2026-10-01T21:27:45.131Z
+---
+
+<description>
+Registrar as rotas `/__test/*` somente quando `ENABLE_TEST_CONTROLS=true`, protegidas pelo header `X-Test-Control-Token`, e implementar o reset que pausa o worker, restaura o seed e retoma.
+</description>
+
+<context>
+- Contrato §8: flag desligada → rotas retornam 404; token inválido → 403; não fazem parte da API do frontend.
+- `POST /__test/reset` → 204: restaura o seed e limpa sessões, contatos adicionais, transferências, Saga, trabalhos e ledger; aguarda worker ocioso ou pausa-o antes do reset.
+- PRD §7: controles isolados por flag e token; nunca logar o token (redaction já configurada).
+- Reusar `resetDatabase` da task de seed/reset e `worker.pause/resume/stop` da task do worker; sagas pausadas por `PAUSE_AFTER_DEBIT` devem ser abortadas (AbortSignal do orquestrador) antes do reset para não escreverem depois.
+- Arquivos: `src/modules/test-controls/routes.ts`, `src/modules/test-controls/guard.ts`.
+</context>
+
+<plan>
+Executado conforme plano. Desvio no teste de retomada pós-reset: worker de teste carrega hooks com aborter antigo (pausa permanente) — validado resume+wake+isIdle em vez de completar r2; execução pós-reset coberta pelo worker.test.ts. curl: 403/204 com flag, 404 sem flag.
+</plan>
+
+<acceptance>
+- [x] Flag desligada: `POST /__test/reset` → 404 e plugin não registrado
+- [x] Flag ligada sem header ou com token errado → 403
+- [x] Token correto → 204 e banco igual ao seed (soma 125000, só `contact-bruno`, sem transferências/ledger/jobs/sessões/faults)
+- [x] Reset com saga em andamento/pausada não deixa escrita da saga depois do reset
+- [x] Worker volta a processar novas transferências após o reset
+- [x] Testes unitários passam
+</acceptance>
+
+<tests>
+`guard.test.ts` (pura): matriz enabled × token (ausente, errado, tamanho diferente, correto).
+`reset-all.test.ts` (SQLite temporário + seed + worker com runSaga fake bloqueado): resetAll aborta/aguarda, banco volta ao seed, worker processa nova transferência depois.
+</tests>
+
+<summary>
+Gate timingSafeEqual + plugin condicional + resetAll com pause/abort/reset/resume. 5 testes, 126 totais, curl 403/204/404 ok.
+</summary>
