@@ -8,6 +8,8 @@ import { ajvOptions, healthSchema, responseSchemas } from './shared/schemas.js';
 import type { Clock } from './shared/clock.js';
 import { registerOriginPlugin } from './http/plugins/origin.js';
 import { registerNoStorePlugin } from './http/plugins/no-store.js';
+import { registerAuthPlugin } from './http/plugins/auth.js';
+import { registerAuthRoutes } from './modules/auth/routes.js';
 
 export interface AppDeps {
   config: Config;
@@ -45,7 +47,10 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   registerOriginPlugin(app, config.frontendOrigin);
   registerNoStorePlugin(app);
 
+  registerAuthPlugin(app, { db: deps.db, clock: deps.clock });
+
   await app.register(cookie);
+  await registerAuthRoutes(app, { config, db: deps.db, clock: deps.clock });
 
   app.setErrorHandler((err, request, reply) => {
     const { statusCode, body } = toApiErrorResponse(err, request.id);
