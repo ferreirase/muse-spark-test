@@ -1,0 +1,560 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Banco Demo API",
+    "version": "1.0.0",
+    "description": "Backend local do Banco Demo v1. Todas as rotas bancárias usam o prefixo /v1. Sessão via cookie HttpOnly bank_session. A API de controles de teste (/__test) é documentada separadamente em docs/test-controls.md."
+  },
+  "servers": [
+    { "url": "http://127.0.0.1:3001", "description": "Backend local" }
+  ],
+  "tags": [
+    { "name": "auth" },
+    { "name": "account" },
+    { "name": "contacts" },
+    { "name": "transfers" },
+    { "name": "health" }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": ["health"],
+        "summary": "Liveness do app e do SQLite",
+        "responses": {
+          "200": {
+            "description": "Pronto",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Health" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/signup": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "Cria usuário, conta (saldo zero) e sessão",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["name", "email", "password"],
+                "properties": {
+                  "name": { "type": "string" },
+                  "email": { "type": "string" },
+                  "password": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Criado",
+            "headers": {
+              "Set-Cookie": {
+                "schema": { "type": "string" },
+                "description": "bank_session=...; HttpOnly; SameSite=Lax; Path=/; Max-Age=86400"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthResult" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "409": {
+            "description": "EMAIL_ALREADY_EXISTS",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/signin": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "Autentica e cria sessão",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["email", "password"],
+                "properties": {
+                  "email": { "type": "string" },
+                  "password": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Autenticado",
+            "headers": {
+              "Set-Cookie": { "schema": { "type": "string" } }
+            },
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthResult" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": {
+            "description": "INVALID_CREDENTIALS",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/signout": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "Revoga a sessão (idempotente)",
+        "responses": {
+          "204": { "description": "Sem conteúdo; cookie expirado" }
+        }
+      }
+    },
+    "/v1/me": {
+      "get": {
+        "tags": ["account"],
+        "summary": "Identidade e conta autenticada",
+        "security": [{ "cookieAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthResult" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthenticated" }
+        }
+      }
+    },
+    "/v1/accounts/me/balance": {
+      "get": {
+        "tags": ["account"],
+        "summary": "Saldo disponível da conta autenticada",
+        "security": [{ "cookieAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Balance" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthenticated" }
+        }
+      }
+    },
+    "/v1/recipients/{accountId}": {
+      "get": {
+        "tags": ["contacts"],
+        "summary": "Consulta pública mínima de um destinatário",
+        "security": [{ "cookieAuth": [] }],
+        "parameters": [
+          {
+            "name": "accountId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Recipient" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "422": {
+            "description": "SELF_RECIPIENT",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/contacts": {
+      "get": {
+        "tags": ["contacts"],
+        "summary": "Lista contatos do usuário autenticado",
+        "security": [{ "cookieAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["items"],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Contact" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthenticated" }
+        }
+      },
+      "post": {
+        "tags": ["contacts"],
+        "summary": "Salva um destinatário como contato",
+        "security": [{ "cookieAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["nickname", "recipientAccountId"],
+                "properties": {
+                  "nickname": { "type": "string" },
+                  "recipientAccountId": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Criado",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Contact" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": {
+            "description": "CONTACT_ALREADY_EXISTS",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiError" }
+              }
+            }
+          },
+          "422": {
+            "description": "SELF_RECIPIENT",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/transfers": {
+      "get": {
+        "tags": ["transfers"],
+        "summary": "Histórico paginado das transferências enviadas",
+        "security": [{ "cookieAuth": [] }],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 1, "maximum": 50, "default": 20 }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TransferPage" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthenticated" }
+        }
+      },
+      "post": {
+        "tags": ["transfers"],
+        "summary": "Solicita uma transferência (Saga assíncrona)",
+        "security": [{ "cookieAuth": [] }],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string", "pattern": "^[A-Za-z0-9._:-]{8,128}$" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["recipientAccountId", "amountCents"],
+                "properties": {
+                  "recipientAccountId": { "type": "string" },
+                  "amountCents": { "type": "integer", "minimum": 1, "maximum": 100000000 },
+                  "note": { "type": ["string", "null"], "maxLength": 140 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Aceita, inicialmente PENDING",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Transfer" }
+              }
+            }
+          },
+          "200": {
+            "description": "Replay idempotente com o mesmo payload",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Transfer" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": {
+            "description": "IDEMPOTENCY_CONFLICT",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiError" }
+              }
+            }
+          },
+          "422": {
+            "description": "SELF_TRANSFER",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/transfers/{id}": {
+      "get": {
+        "tags": ["transfers"],
+        "summary": "Detalhe de uma transferência enviada",
+        "security": [{ "cookieAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Transfer" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "cookieAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "bank_session"
+      }
+    },
+    "responses": {
+      "ValidationError": {
+        "description": "VALIDATION_ERROR",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ApiError" }
+          }
+        }
+      },
+      "Unauthenticated": {
+        "description": "UNAUTHENTICATED",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ApiError" }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Recurso não encontrado",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ApiError" }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Health": {
+        "type": "object",
+        "required": ["status"],
+        "properties": { "status": { "type": "string", "enum": ["ok"] } }
+      },
+      "User": {
+        "type": "object",
+        "required": ["id", "name", "email", "createdAt"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "email": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Account": {
+        "type": "object",
+        "required": ["id", "currency", "balanceCents"],
+        "properties": {
+          "id": { "type": "string" },
+          "currency": { "type": "string", "enum": ["BRL"] },
+          "balanceCents": { "type": "integer" }
+        }
+      },
+      "AuthResult": {
+        "type": "object",
+        "required": ["user", "account"],
+        "properties": {
+          "user": { "$ref": "#/components/schemas/User" },
+          "account": { "$ref": "#/components/schemas/Account" }
+        }
+      },
+      "Balance": {
+        "type": "object",
+        "required": ["accountId", "currency", "balanceCents", "updatedAt"],
+        "properties": {
+          "accountId": { "type": "string" },
+          "currency": { "type": "string", "enum": ["BRL"] },
+          "balanceCents": { "type": "integer" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Recipient": {
+        "type": "object",
+        "required": ["accountId", "name"],
+        "properties": {
+          "accountId": { "type": "string" },
+          "name": { "type": "string" }
+        }
+      },
+      "Contact": {
+        "type": "object",
+        "required": ["id", "nickname", "recipientAccountId", "recipientName", "createdAt"],
+        "properties": {
+          "id": { "type": "string" },
+          "nickname": { "type": "string" },
+          "recipientAccountId": { "type": "string" },
+          "recipientName": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Transfer": {
+        "type": "object",
+        "required": [
+          "id", "sourceAccountId", "recipientAccountId", "recipientName",
+          "amountCents", "currency", "note", "status", "failureCode",
+          "createdAt", "updatedAt"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "sourceAccountId": { "type": "string" },
+          "recipientAccountId": { "type": "string" },
+          "recipientName": { "type": "string" },
+          "amountCents": { "type": "integer" },
+          "currency": { "type": "string", "enum": ["BRL"] },
+          "note": { "type": ["string", "null"] },
+          "status": { "type": "string", "enum": ["PENDING", "PROCESSING", "COMPLETED", "FAILED"] },
+          "failureCode": { "type": ["string", "null"], "enum": ["INSUFFICIENT_FUNDS", "CREDIT_FAILED", null] },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "TransferPage": {
+        "type": "object",
+        "required": ["items", "nextCursor"],
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/Transfer" } },
+          "nextCursor": { "type": ["string", "null"] }
+        }
+      },
+      "ApiError": {
+        "type": "object",
+        "required": ["error", "requestId"],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": ["code", "message"],
+            "properties": {
+              "code": { "type": "string" },
+              "message": { "type": "string" },
+              "details": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["field", "message"],
+                  "properties": {
+                    "field": { "type": "string" },
+                    "message": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "requestId": { "type": "string" }
+        }
+      }
+    }
+  }
+}
