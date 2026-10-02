@@ -1,0 +1,312 @@
+<title>Veredito do backend DeepSeek</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: relatório de auditoria em coluna única, placar no topo, evidência em tabelas roláveis */
+:root {
+  --bg: #f5f7fa;
+  --surface: #ffffff;
+  --fg: #16202b;
+  --muted: #586473;
+  --line: #d8dee6;
+  --accent: #1f4e8c;
+  --pass: #1d7a4b;
+  --partial: #9a6200;
+  --fail: #b3261e;
+  --pass-bg: #e3f3ea;
+  --partial-bg: #fbf0dc;
+  --fail-bg: #fbe5e3;
+  --font-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "Source Sans 3", "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1319; --surface: #151c24; --fg: #e5eaf0; --muted: #95a2b2; --line: #27313d;
+    --accent: #84aee6; --pass: #62c894; --partial: #e2aa4c; --fail: #f2837a;
+    --pass-bg: #15301f; --partial-bg: #33270f; --fail-bg: #3a1916;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1319; --surface: #151c24; --fg: #e5eaf0; --muted: #95a2b2; --line: #27313d;
+  --accent: #84aee6; --pass: #62c894; --partial: #e2aa4c; --fail: #f2837a;
+  --pass-bg: #15301f; --partial-bg: #33270f; --fail-bg: #3a1916;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 16px; line-height: 1.55;
+  padding-inline: 16px; padding-block: 40px 64px;
+}
+.wrap { max-width: 980px; margin: 0 auto; display: grid; gap: 48px; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; line-height: 1.15; }
+h1 { font-size: clamp(1.9rem, 4.5vw, 2.8rem); font-weight: 800; letter-spacing: -0.01em; }
+h2 { font-size: 1.45rem; font-weight: 700; }
+h3 { font-size: 1.05rem; font-weight: 700; }
+p { margin: 0; max-width: 68ch; }
+code, .mono { font-family: var(--font-mono); font-size: 0.86em; }
+code { background: color-mix(in srgb, var(--line) 55%, transparent); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+.eyebrow { font-family: var(--font-mono); font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+section { display: grid; gap: 16px; min-width: 0; }
+header { display: grid; gap: 14px; }
+.lede { color: var(--muted); font-size: 1.08rem; }
+
+.scoreboard {
+  display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 2fr);
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
+}
+.score { padding: 28px; border-right: 1px solid var(--line); display: grid; align-content: center; gap: 8px; }
+.score .num { font-family: var(--font-display); font-weight: 800; font-size: 4.2rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.score .num small { font-size: 1.4rem; color: var(--muted); font-weight: 500; }
+.verdict { display: inline-block; font-family: var(--font-mono); font-weight: 600; font-size: 0.82rem; letter-spacing: 0.05em; padding: 6px 10px; border-radius: 6px; background: var(--pass-bg); color: var(--pass); justify-self: start; }
+.facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.fact { padding: 18px 22px; border-bottom: 1px solid var(--line); display: grid; gap: 4px; min-width: 0; }
+.fact:nth-child(odd) { border-right: 1px solid var(--line); }
+.fact:nth-last-child(-n+2) { border-bottom: 0; }
+.fact b { font-family: var(--font-display); font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+.fact span { color: var(--muted); font-size: 0.92rem; }
+
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+table { width: 100%; border-collapse: collapse; font-size: 0.94rem; }
+th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+th { font-family: var(--font-mono); font-size: 0.74rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 600; background: color-mix(in srgb, var(--line) 30%, var(--surface)); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--font-mono); white-space: nowrap; }
+td.id { font-family: var(--font-mono); font-weight: 600; white-space: nowrap; }
+tfoot td { font-weight: 700; font-family: var(--font-display); }
+.ev { min-width: 360px; }
+.pill { display: inline-block; font-family: var(--font-mono); font-size: 0.72rem; font-weight: 600; letter-spacing: 0.04em; padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
+.pill.pass { background: var(--pass-bg); color: var(--pass); }
+.pill.partial { background: var(--partial-bg); color: var(--partial); }
+.pill.fail { background: var(--fail-bg); color: var(--fail); }
+
+.findings { display: grid; gap: 12px; }
+.finding { display: grid; grid-template-columns: 6px minmax(0, 1fr); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.finding .stripe { background: var(--muted); }
+.finding.sev-media .stripe { background: var(--partial); }
+.finding.sev-baixa .stripe { background: var(--accent); }
+.finding.sev-alta .stripe { background: var(--fail); }
+.finding .body { padding: 14px 18px; display: grid; gap: 6px; min-width: 0; }
+.finding .meta { font-family: var(--font-mono); font-size: 0.76rem; color: var(--muted); letter-spacing: 0.03em; overflow-wrap: anywhere; }
+
+ol.steps { margin: 0; padding-left: 1.3em; display: grid; gap: 10px; max-width: 72ch; }
+.checklist { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.checklist li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 8px; align-items: start; }
+.mark { font-family: var(--font-mono); font-weight: 700; }
+.mark.ok { color: var(--pass); }
+.mark.no { color: var(--muted); }
+pre { margin: 0; overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; font-family: var(--font-mono); font-size: 0.84rem; line-height: 1.6; }
+.note { color: var(--muted); font-size: 0.92rem; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+@media (max-width: 720px) {
+  .scoreboard { grid-template-columns: minmax(0, 1fr); }
+  .score { border-right: 0; border-bottom: 1px solid var(--line); }
+  .facts { grid-template-columns: minmax(0, 1fr); }
+  .fact:nth-child(odd) { border-right: 0; }
+  .fact:nth-last-child(2) { border-bottom: 1px solid var(--line); }
+}
+</style>
+
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Banco Demo v1 · avaliação independente do backend · 02/10/2026</div>
+  <h1>Backend do DeepSeek aprovado com 87,5 de 100</h1>
+  <p class="lede">Os seis critérios eliminatórios foram demonstrados, e o modelo entregou o backend em 9 minutos e 53 segundos. Três itens perderam pontos. O logout responde 204, mas não revoga a sessão no servidor. Depois de um <code>kill -9</code> no meio da Saga, a transferência levou 29 s para ser retomada, e o limite é 10 s. A transferência para a própria conta devolve o código de erro errado.</p>
+</header>
+
+<div class="scoreboard" role="group" aria-label="Resultado">
+  <div class="score">
+    <div class="eyebrow">Nota do backend</div>
+    <div class="num">87,5<small>/100</small></div>
+    <span class="verdict">APROVADO NESTE BENCHMARK</span>
+  </div>
+  <div class="facts">
+    <div class="fact"><b>6 de 6</b><span>critérios eliminatórios demonstrados, com duas ressalvas descritas abaixo</span></div>
+    <div class="fact"><b>100 de 100</b><span>pontos possíveis verificados (cobertura total)</span></div>
+    <div class="fact"><b>90 testes</b><span>unitários passando, em 11 arquivos</span></div>
+    <div class="fact"><b>9 min 53 s</b><span>do primeiro pedido ao fim da sessão do agente</span></div>
+  </div>
+</div>
+
+<section>
+  <h2>Identificação</h2>
+  <div class="table-wrap">
+    <table>
+      <tbody>
+        <tr><th scope="row">Modelo e harness</th><td>DeepSeek V4.1 Flash (<code>deepseek/deepseek-v4.1-flash</code>) pela OpenRouter, passando por um proxy LiteLLM. Harness OpenCode 1.18.34. Reasoning em nível high e permissões automáticas (<code>--dangerously-skip-permissions</code>): o agente executou comandos e editou arquivos sem pedir aprovação, e o log de permissões do OpenCode não tem nenhum pedido nesta sessão.</td></tr>
+        <tr><th scope="row">Código avaliado</th><td>Branch <code>deepseek</code>, commit <code>1bb6efc</code> (tree <code>c92010c27444…235864fb</code>). O agente não fez commits e deixou todos os arquivos fora do git na <code>main</code>. O avaliador os commitou sem alterações, deixando de fora só a pasta <code>.serena/</code>, que guarda estado da ferramenta.</td></tr>
+        <tr><th scope="row">Ambiente</th><td>Node v24.21.0, npm 11.19.0, Linux x86_64 (Pop!_OS, kernel 7.1.5), 20 CPUs, 30 GiB de RAM. Cópia isolada do commit por <code>git archive</code> e arquivo SQLite exclusivo por execução.</td></tr>
+        <tr><th scope="row">Backend</th><td>87,5/100, cobertura 100/100, aprovado nos requisitos obrigatórios.</td></tr>
+        <tr><th scope="row">Frontend</th><td>Não avaliado. A entrega e o pedido desta avaliação cobrem só o backend.</td></tr>
+        <tr><th scope="row">Integração</th><td>Não verificada (não há frontend para o par).</td></tr>
+        <tr><th scope="row">Tempo, custo e tokens</th><td>Sessão do OpenCode de 02:54:00 a 03:03:53 (GMT+2), ou seja, 9 min 53 s, com 197 chamadas ao modelo registradas no LiteLLM, todas com sucesso. Foram 27,6 milhões de tokens de entrada, 99,5% deles lidos do cache, e 120 mil de saída. O LiteLLM registrou US$ 0,34 no total. Detalhes na seção "Velocidade e uso do modelo".</td></tr>
+        <tr><th scope="row">Tentativas</th><td>Uma tentativa anterior às 02:52:47 falhou em 1 segundo com <code>Invalid model name ... openrouter/deepseek-v4.1-flash</code>. Foi um erro de configuração do nome do modelo antes de qualquer resposta, e o pedido foi refeito com o nome correto às 02:54:00. Não houve outra geração da entrega.</td></tr>
+        <tr><th scope="row">Intervenções humanas</th><td>Nenhuma. A sessão tem só a mensagem inicial ("implemente por completo o backlog muse-test-muse"). Durante a avaliação, nenhum arquivo do código avaliado foi alterado.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <h2>Velocidade e uso do modelo</h2>
+  <p>Os números vêm de duas fontes. O arquivo <code>litellm_spend_logs_deepseek_2026-10-02.json</code> é uma versão do log do LiteLLM sem IP, hash de chave e corpo das requisições. O banco local do OpenCode, lido só para consulta, guarda o horário de cada parte do streaming. As 196 respostas do modelo na sessão somam 120.362 tokens gerados, contra 120.379 no LiteLLM. O LiteLLM tem uma chamada a mais, pequena (2.275 tokens de entrada e 17 de saída), que provavelmente é a geração do título da sessão.</p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Métrica</th><th class="num">Valor</th><th>Como foi calculado</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Velocidade de geração</td><td class="num">280 tokens/s</td><td>Medida no OpenCode: tokens gerados (saída mais reasoning) divididos pelo tempo entre a primeira parte do streaming e o fim da resposta, nas 196 respostas. A mediana por resposta é 390 tokens/s. No proxy LiteLLM, que não conta o trecho até o OpenCode, a geração dá 416 tokens/s.</td></tr>
+        <tr><td>Velocidade ponta a ponta</td><td class="num">207 tokens/s</td><td>Medida no OpenCode, do envio da requisição ao fim da resposta, com mediana de 212 tokens/s. No proxy LiteLLM dá 309 tokens/s.</td></tr>
+        <tr><td>Tempo até o primeiro token</td><td class="num">0,72 s</td><td>Mediana no OpenCode, com p90 de 0,87 s e máximo de 4,5 s. Essa espera ocupa 26% do tempo das respostas.</td></tr>
+        <tr><td>Duração por chamada</td><td class="num">1,3 s</td><td>Mediana no LiteLLM. O p90 é 4,1 s e a mais longa levou 12,2 s.</td></tr>
+        <tr><td>Prompt por chamada</td><td class="num">137 mil tokens</td><td>Mediana. O contexto chegou a 237 mil tokens no fim e não foi compactado durante a sessão.</td></tr>
+        <tr><td>Saída por chamada</td><td class="num">362 tokens</td><td>Mediana, com p90 de 1.425. A sessão gerou 120.379 tokens de saída para 27,6 milhões de entrada, cerca de 229 tokens lidos por token gerado.</td></tr>
+        <tr><td>Reasoning</td><td class="num">35.574 tokens</td><td>Presente em 135 das 197 chamadas, somando 30% de toda a saída.</td></tr>
+        <tr><td>Cache</td><td class="num">99,5%</td><td>Fração dos tokens de entrada que o LiteLLM registrou como lidos do cache.</td></tr>
+        <tr><td>Custo</td><td class="num">US$ 0,34</td><td>Total registrado pelo LiteLLM, média de US$ 0,0017 por chamada e máximo de US$ 0,018. O detalhamento por entrada e saída veio vazio no log, o que sugere que o valor veio pronto da OpenRouter em vez de ser calculado pela tabela do LiteLLM.</td></tr>
+        <tr><td>Ritmo</td><td class="num">20 chamadas/min</td><td>197 chamadas em 9,8 min. A maior pausa sem chamada ao modelo durou 62 s.</td></tr>
+        <tr><td>Tempo em chamadas ao modelo</td><td class="num">66%</td><td>Soma da duração das chamadas no LiteLLM dentro do intervalo entre a primeira e a última.</td></tr>
+        <tr><td>Ferramentas</td><td class="num">307 usos</td><td>80 <code>write</code>, 51 <code>edit</code>, 39 <code>bash</code> e 3 <code>read</code>, além das chamadas ao my-backlog (as 32 tasks foram lidas, atualizadas e fechadas). Todos os usos terminaram com sucesso. A sessão acabou com o agente encerrando sozinho: 195 respostas terminaram em chamada de ferramenta e a última em <code>stop</code>.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <h2>Critérios eliminatórios</h2>
+  <ul class="checklist">
+    <li><span class="mark ok" aria-hidden="true">✓</span><span>Fastify executa a API e o TypeScript compila: <code>npm ci</code>, <code>typecheck</code>, <code>build</code> e <code>test</code> terminaram com exit 0.</span></li>
+    <li><span class="mark ok" aria-hidden="true">✓</span><span>O SQLite em arquivo persiste estado após reinício. Usuário criado por signup, contatos e transferências sobreviveram a seis reinícios, um deles com <code>kill -9</code>. O servidor roda o seed a cada boot, mas o seed só insere contas que faltam e não reaplica saldo.</span></li>
+    <li><span class="mark ok" aria-hidden="true">✓</span><span>CQRS tem caminhos distintos. <code>POST /v1/transfers</code> chega em <code>transfers/commands/request-transfer.ts</code> e <code>GET /v1/accounts/me/balance</code> chega em <code>accounts/queries/get-balance.ts</code>.</span></li>
+    <li><span class="mark ok" aria-hidden="true">✓</span><span>A Saga usa commits locais separados e guarda o progresso em <code>transfers.saga_step</code> e na tabela <code>jobs</code>. Compensação e recuperação foram demonstradas por execução. A recuperação terminou sem duplicar débito ou crédito, mas levou 29 s, acima do limite de 10 s; isso foi descontado em BE11.</span></li>
+    <li><span class="mark ok" aria-hidden="true">✓</span><span>Autenticação e isolamento por usuário funcionam: rotas privadas exigem sessão, sessões expiradas são recusadas e nenhum usuário vê dados de outro. O logout, porém, não revoga a sessão no servidor. Contei isso em BE02, não como eliminatório, porque o acesso continua restrito ao dono do token. Se você considerar a revogação parte do critério, a entrega passa a REPROVADO NOS REQUISITOS OBRIGATÓRIOS, com a mesma nota bruta.</span></li>
+    <li><span class="mark ok" aria-hidden="true">✓</span><span>Nenhum saldo negativo, débito ou crédito duplicado. A soma de saldos com o valor em trânsito ficou em 125000 centavos em todos os cenários.</span></li>
+  </ul>
+</section>
+
+<section>
+  <h2>Evidência por item</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>ID</th><th>Resultado</th><th class="num">Pontos</th><th class="ev">Evidência</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="id">BE01</td><td><span class="pill pass">PASSA</span></td><td class="num">5/5</td><td><code>db:migrate</code>, <code>db:seed</code> e <code>db:reset</code> com exit 0. Depois do reset, o banco tem saldos 100000, 25000 e 0, soma 125000 e um contato. <code>/health</code> responde <code>{"status":"ok"}</code>. Após restart, o usuário novo faz signin e Alice continua com 100000.</td></tr>
+        <tr><td class="id">BE02</td><td><span class="pill partial">PARCIAL</span></td><td class="num">5/10</td><td>Passam: trim de nome e lowercase de e-mail, 409 para e-mail equivalente, 400 para senha de 7 ou 73 caracteres, scrypt com salt próprio por usuário, sessão gravada como SHA-256, sessão expirada no SQLite com 401, signin inválido com a mesma mensagem para e-mail existente e inexistente, cookie com <code>HttpOnly; SameSite=Lax; Path=/; Max-Age=86400</code>, logs sem senha nem cookie. Falham: o signout responde 204 e limpa o cookie, mas o mesmo token continua aceito em <code>GET /v1/me</code> (200), e nenhuma sessão fica com <code>revoked_at</code> no banco. Com <code>Content-Type: application/json</code> e corpo vazio, o signout responde 400 e não limpa o cookie.</td></tr>
+        <tr><td class="id">BE03</td><td><span class="pill pass">PASSA</span></td><td class="num">10/10</td><td>Sete rotas privadas sem sessão retornam 401 <code>UNAUTHENTICATED</code>. Bruno abrindo uma transferência de Alice recebe 404 <code>TRANSFER_NOT_FOUND</code>. <code>sourceAccountId</code> e <code>balanceCents</code> extras recebem 400 e o saldo não muda. Origin estranha em POST recebe 403, e a origem do front passa. <code>Cache-Control: no-store</code> também nas respostas 401. Sem CORS.</td></tr>
+        <tr><td class="id">BE04</td><td><span class="pill pass">PASSA</span></td><td class="num">5/5</td><td>Contato Carla criado com 201 e <code>recipientName</code> "Carla Demo". Duplicata 409, própria conta 422, conta inexistente 404. Bruno vê lista vazia. Após restart, Alice lista "Bruno,Carla".</td></tr>
+        <tr><td class="id">BE05</td><td><span class="pill pass">PASSA</span></td><td class="num">5/5</td><td>Chaves dos DTOs idênticas ao contrato. O lookup retorna só <code>accountId</code> e <code>name</code>. Com <code>limit=2</code> e três <code>createdAt</code> iguais forçados no banco, sete transferências saíram em quatro páginas sem duplicata nem lacuna. Cursor inválido, <code>limit=0</code> e <code>limit=51</code> recebem 400.</td></tr>
+        <tr><td class="id">BE06</td><td><span class="pill pass">PASSA</span></td><td class="num">10/10</td><td>202 PENDING e COMPLETED em 156 ms. Saldos 89999, 35001 e 0 na API e no SQLite. Ledger com um DEBIT de −10001 em <code>acc-alice</code> e um CREDIT de +10001 em <code>acc-bruno</code>.</td></tr>
+        <tr><td class="id">BE07</td><td><span class="pill partial">PARCIAL</span></td><td class="num">2,5/5</td><td>Passam: os valores 0, −1, 1.5, <code>"100"</code> e 100000001 recebem 400; destino inexistente 404; <code>currency</code> extra 400; nenhuma linha criada em <code>transfers</code> ou <code>jobs</code>; 100001 vira FAILED com <code>INSUFFICIENT_FUNDS</code>, sem ledger; JSON malformado recebe 400. Falham: transferência para a própria conta responde 422 com o código <code>SELF_RECIPIENT</code>, quando o contrato pede <code>SELF_TRANSFER</code>; e os 400 de valor fora da faixa (0, −1 e 100000001) vêm sem <code>details</code>, que o contrato exige para campos corrigíveis.</td></tr>
+        <tr><td class="id">BE08</td><td><span class="pill pass">PASSA</span></td><td class="num">10/10</td><td>Replay retorna 200 com o mesmo ID, inclusive com a nota diferindo só em espaços. Payload diferente recebe 409. Chave ausente, curta, com espaço ou com 129 caracteres recebe 400. A mesma chave usada por Bruno gera uma operação nova. Replay após restart com sessão nova funciona. Dez POSTs simultâneos geram um 202, nove 200, uma transferência, um DEBIT e um CREDIT.</td></tr>
+        <tr><td class="id">BE09</td><td><span class="pill pass">PASSA</span></td><td class="num">10/10</td><td>Três rodadas de duas transferências de 70000 em paralelo: uma COMPLETED e uma INSUFFICIENT_FUNDS em todas, Alice com 30000 e soma 125000. Créditos simultâneos para Carla somaram 15000, com Alice em 90000 e Bruno em 20000.</td></tr>
+        <tr><td class="id">BE10</td><td><span class="pill pass">PASSA</span></td><td class="num">10/10</td><td>Controles retornam 404 com a flag desligada e 403 com token errado. FAIL_CREDIT_ONCE leva a FAILED com <code>CREDIT_FAILED</code>, saldos 100000 e 25000, trânsito 0, um DEBIT de −10000 e uma COMPENSATION de +10000. Reabrir o job terminal no banco e reiniciar não gerou reembolso extra. No subcaso 6, um teste externo pelo orquestrador combinou os dois modos (pausa após o débito, depois falha de crédito) e deixou Alice com 105000 e Bruno com 20000, então a compensação soma o valor de volta. Em <code>steps.ts</code>, débito, crédito, marcação de compensação e compensação rodam cada um em sua própria transação <code>immediate</code>.</td></tr>
+        <tr><td class="id">BE11</td><td><span class="pill partial">PARCIAL</span></td><td class="num">5/10</td><td>Passam: com PAUSE_AFTER_DEBIT a transferência fica em PROCESSING com saldos 90000 e 25000 e trânsito de 10000; depois do <code>kill -9</code> e do restart no mesmo arquivo, ela chega a COMPLETED com 90000 e 35000, trânsito 0, um DEBIT e um CREDIT; um novo restart com replay devolve o mesmo ID; uma transferência pausada não bloqueia as outras; <code>/__test/release</code> libera a pausa em 215 ms. Falha: a retomada levou 29,0 s depois do restart, e o limite é 10 s. O job ficou preso pelo lock da execução morta até o lease de 30 s vencer.</td></tr>
+        <tr><td class="id">BE12</td><td><span class="pill pass">PASSA</span></td><td class="num">10/10</td><td>Nenhum <code>INSERT</code>, <code>UPDATE</code> ou <code>.run()</code> em <code>queries/</code>, nenhum <code>prepare()</code> em rotas ou plugins HTTP e nenhum estado global. Idempotência e passos únicos garantidos por <code>UNIQUE(source_account_id, idempotency_key)</code>, <code>UNIQUE(transfer_id, type)</code> e triggers. Os 90 testes unitários usam SQLite real em arquivo e cobrem passos da Saga, compensação, concorrência e recuperação reabrindo a conexão. O OpenAPI 3.1 cobre as 10 rotas normais e deixa <code>/__test</code> de fora. As divergências entre documentação e execução estão nos achados.</td></tr>
+      </tbody>
+      <tfoot>
+        <tr><td colspan="2">Total</td><td class="num">87,5/100</td><td></td></tr>
+      </tfoot>
+    </table>
+  </div>
+</section>
+
+<section>
+  <h2>Achados, do mais grave ao mais leve</h2>
+  <div class="findings">
+    <article class="finding sev-alta">
+      <div class="stripe" aria-hidden="true"></div>
+      <div class="body">
+        <h3>O logout não revoga a sessão no servidor</h3>
+        <p>A rota <code>POST /v1/auth/signout</code> lê <code>request.auth</code>, mas não registra o hook <code>authenticate</code> que preenche esse campo. O campo fica sempre vazio, o comando de signout nunca roda o UPDATE em <code>sessions</code>, e o token continua válido por 24 h para quem o tiver guardado. O comando em si está correto e tem teste unitário passando; o defeito está só na ligação com a rota, que nenhum teste exercita.</p>
+        <div class="meta">Severidade alta · src/modules/auth/routes.ts:55 · reproduzir: signin, POST /v1/auth/signout com o cookie, GET /v1/me com o mesmo cookie → 200</div>
+      </div>
+    </article>
+    <article class="finding sev-media">
+      <div class="stripe" aria-hidden="true"></div>
+      <div class="body">
+        <h3>A recuperação após crash espera o lease de 30 s vencer</h3>
+        <p>O worker reivindica o job com um lease de 30 s. No boot, <code>recoverStaleLocks</code> só libera locks já vencidos, então o lock deixado pelo processo morto continua valendo. Medido: 29,0 s entre o restart e o COMPLETED. Como só existe um worker por arquivo, liberar todos os locks no boot, ou usar um lease curto com renovação, traria a retomada para dentro de 10 s.</p>
+        <div class="meta">Severidade média · src/modules/worker/job-repository.ts:22 e src/modules/worker/worker.ts:46</div>
+      </div>
+    </article>
+    <article class="finding sev-media">
+      <div class="stripe" aria-hidden="true"></div>
+      <div class="body">
+        <h3>Signout com corpo JSON vazio responde 400</h3>
+        <p>Com <code>Content-Type: application/json</code> e <code>Content-Length: 0</code>, o Fastify recusa o corpo antes da rota, e a resposta é 400 sem limpar o cookie. O contrato diz que o signout é idempotente e retorna 204, e o frontend chega pelo proxy, que pode repassar esse cabeçalho.</p>
+        <div class="meta">Severidade média · src/modules/auth/routes.ts:55</div>
+      </div>
+    </article>
+    <article class="finding sev-baixa">
+      <div class="stripe" aria-hidden="true"></div>
+      <div class="body">
+        <h3>Transferência para a própria conta devolve SELF_RECIPIENT</h3>
+        <p>O comando de transferência reutiliza o lookup de destinatário, que lança <code>SELF_RECIPIENT</code>. A função <code>selfTransfer()</code>, com o código certo, existe em <code>errors.ts</code> mas nunca é chamada. O relatório do próprio agente registra esse 422 <code>SELF_RECIPIENT</code> como resultado esperado.</p>
+        <div class="meta">Severidade baixa · src/modules/transfers/commands/request-transfer.ts:57 · src/shared/errors.ts:91</div>
+      </div>
+    </article>
+    <article class="finding sev-baixa">
+      <div class="stripe" aria-hidden="true"></div>
+      <div class="body">
+        <h3>Erros de validação incompletos e estado intermediário com failureCode</h3>
+        <p>Os 400 de valor fora da faixa saem sem <code>details</code>, e quando há <code>details</code> o campo vem como ponteiro JSON (<code>/amountCents</code>) em vez do nome. Durante a compensação, a transferência aparece como PROCESSING já com <code>failureCode: CREDIT_FAILED</code>. Uma requisição sem sessão e com corpo inválido recebe 400 em vez de 401, porque a validação roda antes da autenticação. O OpenAPI não documenta o 403 <code>ORIGIN_NOT_ALLOWED</code> nem respostas 500.</p>
+        <div class="meta">Severidade baixa · src/shared/errors.ts:152 · src/modules/transfers/saga/steps.ts:197 · openapi.json</div>
+      </div>
+    </article>
+    <article class="finding">
+      <div class="stripe" aria-hidden="true"></div>
+      <div class="body">
+        <h3>Processo, manutenção e documentação</h3>
+        <p>O agente não fez nenhum commit e deixou a entrega fora do git, na <code>main</code>. O README afirma que o logout revoga a sessão no servidor e que os testes cobrem o worker, mas não há teste do worker, do lease, do reset nem dos controles de teste. O relatório de execução fala em 9 arquivos e 72 testes, e a entrega final tem 11 arquivos e 90 testes. O orquestrador consulta a tabela <code>test_faults</code> em toda transferência, mesmo com os controles desligados. O consumo da falha FAIL_CREDIT_ONCE é gravado numa transação separada da que marca COMPENSATING, então um crash entre as duas faria a retomada creditar normalmente; isso afeta só o controle de teste.</p>
+        <div class="meta">Sem severidade funcional</div>
+      </div>
+    </article>
+  </div>
+</section>
+
+<section>
+  <h2>Três ajustes prioritários</h2>
+  <ol class="steps">
+    <li>No signout, resolver a sessão a partir do cookie (por exemplo, rodando o hook de autenticação em modo opcional), revogá-la no banco e aceitar corpo JSON vazio, sempre respondendo 204.</li>
+    <li>No boot do worker, liberar todos os locks de jobs pendentes, ou trocar o lease de 30 s por um lease curto com renovação, para retomar a Saga em menos de 10 s.</li>
+    <li>Usar <code>selfTransfer()</code> no comando de transferência e incluir <code>details</code> com o nome do campo em todos os erros de validação.</li>
+  </ol>
+</section>
+
+<section>
+  <h2>Como reproduzir</h2>
+  <p>A avaliação rodou numa cópia isolada do commit <code>1bb6efc</code>. Instalação e verificação estática:</p>
+<pre>npm ci
+npm run typecheck   # exit 0
+npm run build       # exit 0
+npm test            # 11 arquivos, 90 testes, exit 0</pre>
+  <p>Os cenários de API usaram scripts externos do avaliador, escritos a partir do contrato, que não alteram o código avaliado. <code>harness.mjs</code> sobe <code>node dist/server.js</code> com um <code>DATABASE_PATH</code> temporário e controles de teste ligados, executa 72 checks de BE01 a BE11 com requisições HTTP reais, mata o processo com <code>SIGKILL</code> no cenário de crash, mede o tempo real de retomada e confere saldos e ledger direto no SQLite. <code>probe.mjs</code>, <code>probe2.mjs</code> e <code>probe3.mjs</code> testam signout, corpos inválidos, códigos de erro e o estado das sessões no banco. <code>eval-be10-6.ts</code> roda o subcaso de compensação com outras operações pelo orquestrador, rearmando a falha de teste entre a pausa e a liberação.</p>
+  <p class="note">Resultado bruto do harness: 67 checks passaram e 5 falharam. Todas as falhas viraram descontos ou achados: as duas do signout em BE02, as duas de código e de <code>details</code> em BE07 e a do tempo de retomada em BE11.</p>
+</section>
+
+<section>
+  <h2>Lista final de decisão</h2>
+  <ul class="checklist">
+    <li><span class="mark ok" aria-hidden="true">✓</span><span>Jornadas obrigatórias do backend executadas pela API.</span></li>
+    <li><span class="mark ok" aria-hidden="true">✓</span><span>Estado financeiro persistido e reconciliado: soma de 125000 em todos os cenários e ledger coerente com os saldos.</span></li>
+    <li><span class="mark ok" aria-hidden="true">✓</span><span>CQRS confirmado por inspeção do código.</span></li>
+    <li><span class="mark ok" aria-hidden="true">✓</span><span>Saga confirmada nos três caminhos: sucesso, compensação e crash com recuperação. A recuperação ficou acima do tempo-alvo.</span></li>
+    <li><span class="mark ok" aria-hidden="true">✓</span><span>Idempotência e disputa por saldo demonstradas, inclusive com requisições simultâneas.</span></li>
+    <li><span class="mark no" aria-hidden="true">–</span><span>Frontend validado em browser: não se aplica a esta avaliação.</span></li>
+    <li><span class="mark no" aria-hidden="true">–</span><span>Resultado desconhecido e retry no frontend: não se aplica. A deduplicação do lado do servidor foi verificada em BE08.</span></li>
+    <li><span class="mark no" aria-hidden="true">–</span><span>Integração do par: não verificada.</span></li>
+    <li><span class="mark ok" aria-hidden="true">✓</span><span>Nota e cobertura do backend apresentadas separadamente.</span></li>
+    <li><span class="mark ok" aria-hidden="true">✓</span><span>Passos de reprodução e localização dos defeitos registrados nesta página.</span></li>
+  </ul>
+  <p class="note">Esta avaliação mede o escopo local definido pelo PRD e pelo contrato. Ela não atesta que o sistema esteja pronto para produção.</p>
+</section>
+
+</div>
