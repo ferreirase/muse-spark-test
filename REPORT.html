@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Banco Demo v1: três modelos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: extrato bancário de uma coluna; cada seção é um lançamento com rótulo à esquerda no desktop e empilhado no celular */
+:root {
+  --bg: #f2f4f1;
+  --surface: #ffffff;
+  --ink: #14201b;
+  --muted: #5a6962;
+  --line: #d6ddd8;
+  --soft: #e8ece9;
+  --glm: #1d64c9;
+  --muse: #7046c4;
+  --ds: #0b8a7c;
+  --pass: #1f7d47;
+  --pass-bg: #dcefe3;
+  --warn: #a86b00;
+  --warn-bg: #f7e9c8;
+  --fail: #b8322b;
+  --fail-bg: #f6dcd9;
+  --f-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1412; --surface: #151d1a; --ink: #e4ebe7; --muted: #94a39c; --line: #2a3531; --soft: #1c2622;
+    --glm: #6aa5ff; --muse: #b096f0; --ds: #3cc7b4;
+    --pass: #63c98c; --pass-bg: #173326; --warn: #e8b44c; --warn-bg: #3a2e12; --fail: #f08077; --fail-bg: #3d1d1a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1412; --surface: #151d1a; --ink: #e4ebe7; --muted: #94a39c; --line: #2a3531; --soft: #1c2622;
+  --glm: #6aa5ff; --muse: #b096f0; --ds: #3cc7b4;
+  --pass: #63c98c; --pass-bg: #173326; --warn: #e8b44c; --warn-bg: #3a2e12; --fail: #f08077; --fail-bg: #3d1d1a;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 400 16px/1.6 var(--f-body);
+  padding: 0 16px;
+}
+.wrap { max-width: 1080px; margin: 0 auto; padding-block: 48px 72px; }
+a { color: inherit; text-decoration-color: var(--muted); text-underline-offset: 3px; }
+a:focus-visible { outline: 2px solid var(--glm); outline-offset: 2px; }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; margin: 0; line-height: 1.1; }
+h1 { font-size: clamp(2.2rem, 5.5vw, 3.9rem); font-weight: 800; letter-spacing: -0.02em; }
+h2 { font-size: clamp(1.4rem, 2.6vw, 1.9rem); font-weight: 700; letter-spacing: -0.01em; }
+h3 { font-size: 1.1rem; font-weight: 700; }
+p { margin: 0; max-width: 68ch; }
+.mono, .num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+.eyebrow { font: 500 0.75rem/1.4 var(--f-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.muted { color: var(--muted); }
+small, .note { font-size: 0.86rem; color: var(--muted); }
+
+/* header */
+header.top { display: grid; gap: 20px; padding-bottom: 36px; border-bottom: 2px solid var(--ink); }
+header.top .lead { font-size: 1.12rem; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 0.9rem; }
+.legend span { display: inline-flex; align-items: center; gap: 8px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex: none; }
+.c-glm { --m: var(--glm); } .c-muse { --m: var(--muse); } .c-ds { --m: var(--ds); }
+.dot { background: var(--m); }
+
+/* statement cards */
+.cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 32px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-top: 4px solid var(--m); padding: 20px; display: grid; gap: 14px; align-content: start; min-width: 0; }
+.card .rank { font: 500 0.78rem var(--f-mono); color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+.card h3 { font-size: 1.25rem; }
+.score { font-family: var(--f-display); font-weight: 800; font-size: 3.6rem; line-height: 0.9; letter-spacing: -0.03em; color: var(--m); }
+.score small { font: 500 1rem var(--f-mono); color: var(--muted); letter-spacing: 0; }
+.pill { display: inline-block; font: 500 0.74rem/1 var(--f-mono); padding: 6px 8px; border-radius: 3px; letter-spacing: 0.04em; text-transform: uppercase; }
+.pill.ok { background: var(--pass-bg); color: var(--pass); }
+.pill.warn { background: var(--warn-bg); color: var(--warn); }
+.facts { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; margin: 0; font-size: 0.9rem; }
+.facts dt { color: var(--muted); }
+.facts dd { margin: 0; text-align: right; font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+.card p { font-size: 0.92rem; }
+
+/* sections */
+section.entry { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 32px; padding-block: 44px; border-bottom: 1px solid var(--line); }
+section.entry > header { display: grid; gap: 8px; align-content: start; }
+section.entry > .body { display: grid; gap: 22px; min-width: 0; }
+
+/* bars */
+.bars { display: grid; gap: 12px; }
+.bar-row { display: grid; grid-template-columns: 150px minmax(0, 1fr) 72px; gap: 12px; align-items: center; }
+.bar-row .lbl { font-size: 0.92rem; }
+.track { position: relative; height: 22px; background: var(--soft); }
+.fill { position: absolute; inset: 0 auto 0 0; background: var(--m); min-width: 3px; }
+.bar-row .val { font-family: var(--f-mono); font-variant-numeric: tabular-nums; text-align: right; font-size: 0.92rem; }
+.limit { position: absolute; top: -6px; bottom: -6px; width: 0; border-left: 2px dashed var(--fail); }
+.axis { display: grid; grid-template-columns: 150px minmax(0, 1fr) 72px; gap: 12px; }
+.axis .ticks { position: relative; height: 18px; font: 400 0.72rem var(--f-mono); color: var(--muted); }
+.axis .ticks span { position: absolute; transform: translateX(-50%); }
+.axis .ticks span:first-child { transform: none; }
+.axis .ticks span:last-child { transform: translateX(-100%); }
+
+/* tables */
+.scroll { overflow-x: auto; border: 1px solid var(--line); background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+thead th { font: 500 0.74rem var(--f-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); background: var(--soft); white-space: nowrap; }
+tbody tr:last-child td, tbody tr:last-child th { border-bottom: 0; }
+tfoot td, tfoot th { border-top: 2px solid var(--ink); border-bottom: 0; font-weight: 600; }
+td.c, th.c { text-align: center; }
+.id { font-family: var(--f-mono); font-weight: 500; white-space: nowrap; }
+.cell { display: inline-block; min-width: 4.4em; padding: 4px 6px; font-family: var(--f-mono); font-variant-numeric: tabular-nums; text-align: center; border-radius: 3px; }
+.cell.full { background: var(--pass-bg); color: var(--pass); }
+.cell.half { background: var(--warn-bg); color: var(--warn); font-weight: 600; }
+.chip { display: inline-flex; gap: 6px; align-items: baseline; font-size: 0.86rem; line-height: 1.35; }
+.chip b { font: 600 0.72rem var(--f-mono); padding: 2px 5px; border-radius: 3px; flex: none; }
+.chip.ok b { background: var(--pass-bg); color: var(--pass); }
+.chip.part b { background: var(--warn-bg); color: var(--warn); }
+.chip.no b { background: var(--fail-bg); color: var(--fail); }
+th .dot { margin-right: 6px; }
+
+/* small multiples */
+.multiples { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; }
+.mini { background: var(--surface); border: 1px solid var(--line); padding: 16px; display: grid; gap: 10px; min-width: 0; }
+.mini h3 { font-size: 0.98rem; }
+.mini .sub { font-size: 0.8rem; color: var(--muted); margin-top: -6px; }
+.mini .r { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 8px; align-items: center; font-size: 0.82rem; }
+.mini .r .t { position: relative; height: 18px; background: var(--soft); }
+.mini .r .t i { position: absolute; inset: 0 auto 0 0; background: var(--m); min-width: 2px; }
+.mini .r .t em { position: absolute; left: 6px; top: 0; line-height: 18px; font: normal 500 0.76rem var(--f-mono); color: var(--ink); white-space: nowrap; }
+.mini .r .t em.out { left: auto; right: 6px; }
+.mini .r .t i + em.on { color: var(--surface); }
+
+/* scatter */
+figure { margin: 0; display: grid; gap: 10px; }
+figure .chart { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); padding: 8px; }
+svg { display: block; }
+svg text { font-family: var(--f-mono); font-size: 12px; fill: var(--muted); }
+svg .grid { stroke: var(--line); stroke-width: 1; }
+svg .threshold { stroke: var(--fail); stroke-width: 1.5; stroke-dasharray: 5 4; }
+svg .pt-glm { fill: var(--glm); } svg .pt-muse { fill: var(--muse); } svg .pt-ds { fill: var(--ds); }
+svg .lab { fill: var(--ink); font-family: var(--f-body); font-size: 13px; font-weight: 600; }
+svg .ring { fill: none; stroke: var(--glm); stroke-width: 2; stroke-dasharray: 3 3; }
+figcaption { font-size: 0.86rem; color: var(--muted); max-width: 70ch; }
+
+/* conservation strip */
+.ledger { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.ledger div { background: var(--surface); border: 1px solid var(--line); padding: 14px 16px; display: grid; gap: 4px; min-width: 0; }
+.ledger .big { font: 600 1.35rem var(--f-mono); font-variant-numeric: tabular-nums; }
+
+/* defects */
+.defects { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.dcol { display: grid; gap: 12px; align-content: start; min-width: 0; }
+.dcol > h3 { display: flex; align-items: center; gap: 8px; padding-bottom: 8px; border-bottom: 3px solid var(--m); }
+.defect { background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--sev); padding: 12px 14px; display: grid; gap: 6px; }
+.defect.alta { --sev: var(--fail); } .defect.media { --sev: var(--warn); } .defect.baixa { --sev: var(--line); }
+.defect .sev { font: 500 0.7rem var(--f-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.defect p { font-size: 0.9rem; }
+.defect code, td code, p code, li code { font-family: var(--f-mono); font-size: 0.86em; background: var(--soft); padding: 1px 4px; border-radius: 2px; overflow-wrap: anywhere; }
+
+/* verdict */
+.verdict { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.verdict > div { background: var(--surface); border: 1px solid var(--line); padding: 18px; display: grid; gap: 8px; align-content: start; min-width: 0; }
+.verdict .q { font: 500 0.74rem var(--f-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.verdict .a { font-family: var(--f-display); font-size: 1.45rem; font-weight: 700; color: var(--m); line-height: 1.1; }
+ul.plain { margin: 0; padding-left: 1.1em; display: grid; gap: 8px; max-width: 72ch; }
+footer { padding-top: 32px; font-size: 0.86rem; color: var(--muted); display: grid; gap: 8px; }
+
+@media (max-width: 860px) {
+  section.entry { grid-template-columns: minmax(0, 1fr); gap: 18px; padding-block: 32px; }
+  .cards, .defects, .verdict, .ledger { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 520px) {
+  .wrap { padding-block: 28px 48px; }
+  .bar-row, .axis { grid-template-columns: 92px minmax(0, 1fr) 58px; gap: 8px; }
+  .score { font-size: 3rem; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .fill, .mini .r .t i { animation: grow 700ms ease-out both; transform-origin: left; }
+  @keyframes grow { from { transform: scaleX(0.02); } to { transform: scaleX(1); } }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <div class="eyebrow">Banco Demo v1 · benchmark de backend · 02/10/2026</div>
+  <h1>Três modelos implementando o mesmo backend</h1>
+  <p class="lead">GLM 5.3, Muse Spark 1.3 e DeepSeek V4.1 Flash receberam a mesma especificação, o mesmo backlog de 32 tarefas e o mesmo harness, e implementaram sem ajuda um backend bancário com CQRS e Saga. Os três passaram na avaliação. O GLM teve a maior nota, e o DeepSeek terminou em 10 minutos, gastando 34 centavos de dólar.</p>
+  <div class="legend" aria-label="Legenda de cores dos modelos">
+    <span class="c-glm"><i class="dot"></i>GLM 5.3</span>
+    <span class="c-muse"><i class="dot"></i>Muse Spark 1.3</span>
+    <span class="c-ds"><i class="dot"></i>DeepSeek V4.1 Flash</span>
+  </div>
+
+  <div class="cards">
+    <article class="card c-glm">
+      <div class="rank">1º lugar</div>
+      <h3>GLM 5.3</h3>
+      <div class="score">97,5<small> /100</small></div>
+      <div><span class="pill ok">Aprovado</span></div>
+      <dl class="facts">
+        <dt>Tempo</dt><dd>1h19</dd>
+        <dt>Custo</dt><dd>US$ 17,05*</dd>
+        <dt>Testes</dt><dd>203</dd>
+        <dt>Commits</dt><dd>22</dd>
+      </dl>
+      <p>Perdeu pontos só por responder 500 a JSON malformado.</p>
+    </article>
+    <article class="card c-muse">
+      <div class="rank">2º lugar</div>
+      <h3>Muse Spark 1.3</h3>
+      <div class="score">95<small> /100</small></div>
+      <div><span class="pill ok">Aprovado</span></div>
+      <dl class="facts">
+        <dt>Tempo</dt><dd>1h36</dd>
+        <dt>Custo</dt><dd>US$ 53,62</dd>
+        <dt>Testes</dt><dd>132</dd>
+        <dt>Commits</dt><dd>sem git</dd>
+      </dl>
+      <p>Signout com JSON vazio responde 500 e mantém a sessão.</p>
+    </article>
+    <article class="card c-ds">
+      <div class="rank">3º lugar</div>
+      <h3>DeepSeek V4.1 Flash</h3>
+      <div class="score">87,5<small> /100</small></div>
+      <div><span class="pill warn">Aprovado com ressalva</span></div>
+      <dl class="facts">
+        <dt>Tempo</dt><dd>9 min 53 s</dd>
+        <dt>Custo</dt><dd>US$ 0,34</dd>
+        <dt>Testes</dt><dd>90</dd>
+        <dt>Commits</dt><dd>nenhum</dd>
+      </dl>
+      <p>Logout não revoga a sessão, e a retomada após crash leva 29 s.</p>
+    </article>
+  </div>
+  <p class="note">* Estimativa do LiteLLM pela tabela de preços dele. O GLM rodou no plano de assinatura de código da z.ai, então a cobrança real pode ser outra.</p>
+</header>
+
+<section class="entry" id="nota">
+  <header>
+    <div class="eyebrow">Nota</div>
+    <h2>Nota final</h2>
+  </header>
+  <div class="body">
+    <p>A rubrica soma 100 pontos em 12 itens e aprova a entrega com 80 ou mais, desde que os seis critérios eliminatórios estejam demonstrados. Os três demonstraram todos, com cobertura de 100 pontos verificados.</p>
+    <div class="bars" role="img" aria-label="Notas: GLM 97,5; Muse 95; DeepSeek 87,5; corte em 80">
+      <div class="bar-row c-glm"><span class="lbl">GLM 5.3</span><div class="track"><i class="fill" style="width:97.5%"></i><i class="limit" style="left:80%"></i></div><span class="val">97,5</span></div>
+      <div class="bar-row c-muse"><span class="lbl">Muse Spark 1.3</span><div class="track"><i class="fill" style="width:95%"></i><i class="limit" style="left:80%"></i></div><span class="val">95</span></div>
+      <div class="bar-row c-ds"><span class="lbl">DeepSeek V4.1 Flash</span><div class="track"><i class="fill" style="width:87.5%"></i><i class="limit" style="left:80%"></i></div><span class="val">87,5</span></div>
+      <div class="axis"><span></span><div class="ticks"><span style="left:0">0</span><span style="left:25%">25</span><span style="left:50%">50</span><span style="left:80%">80 corte</span><span style="left:100%">100</span></div><span></span></div>
+    </div>
+    <p class="note">O DeepSeek foi aprovado com ressalva porque o logout dele não revoga a sessão. Contei isso como parcial em autenticação (BE02), já que nenhum usuário consegue ver dados de outro. Se a revogação fizer parte do critério eliminatório para você, leia o resultado como reprovado; a nota bruta continua 87,5.</p>
+  </div>
+</section>
+
+<section class="entry" id="rubrica">
+  <header>
+    <div class="eyebrow">Rubrica</div>
+    <h2>Nota por item</h2>
+    <p class="note">Cada item vale fator 1, 0,5 ou 0 sobre o peso. Nenhum ficou com zero.</p>
+  </header>
+  <div class="body">
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Item</th><th>O que verifica</th><th class="c">Peso</th><th class="c"><i class="dot c-glm"></i>GLM</th><th class="c"><i class="dot c-muse"></i>Muse</th><th class="c"><i class="dot c-ds"></i>DeepSeek</th></tr></thead>
+        <tbody>
+          <tr><td class="id">BE01</td><td>Instalação, build, migração, seed, reset e persistência</td><td class="c num">5</td><td class="c"><span class="cell full">5</span></td><td class="c"><span class="cell full">5</span></td><td class="c"><span class="cell full">5</span></td></tr>
+          <tr><td class="id">BE02</td><td>Signup, signin e signout</td><td class="c num">10</td><td class="c"><span class="cell full">10</span></td><td class="c"><span class="cell half">5</span></td><td class="c"><span class="cell half">5</span></td></tr>
+          <tr><td class="id">BE03</td><td>Autorização, isolamento, cookie e Origin</td><td class="c num">10</td><td class="c"><span class="cell full">10</span></td><td class="c"><span class="cell full">10</span></td><td class="c"><span class="cell full">10</span></td></tr>
+          <tr><td class="id">BE04</td><td>Contatos</td><td class="c num">5</td><td class="c"><span class="cell full">5</span></td><td class="c"><span class="cell full">5</span></td><td class="c"><span class="cell full">5</span></td></tr>
+          <tr><td class="id">BE05</td><td>Queries, DTOs e paginação estável</td><td class="c num">5</td><td class="c"><span class="cell full">5</span></td><td class="c"><span class="cell full">5</span></td><td class="c"><span class="cell full">5</span></td></tr>
+          <tr><td class="id">BE06</td><td>Transferência normal, centavos exatos e ledger</td><td class="c num">10</td><td class="c"><span class="cell full">10</span></td><td class="c"><span class="cell full">10</span></td><td class="c"><span class="cell full">10</span></td></tr>
+          <tr><td class="id">BE07</td><td>Validação de valor e saldo insuficiente</td><td class="c num">5</td><td class="c"><span class="cell half">2,5</span></td><td class="c"><span class="cell full">5</span></td><td class="c"><span class="cell half">2,5</span></td></tr>
+          <tr><td class="id">BE08</td><td>Idempotência sequencial, concorrente e após restart</td><td class="c num">10</td><td class="c"><span class="cell full">10</span></td><td class="c"><span class="cell full">10</span></td><td class="c"><span class="cell full">10</span></td></tr>
+          <tr><td class="id">BE09</td><td>Concorrência financeira</td><td class="c num">10</td><td class="c"><span class="cell full">10</span></td><td class="c"><span class="cell full">10</span></td><td class="c"><span class="cell full">10</span></td></tr>
+          <tr><td class="id">BE10</td><td>Saga e compensação</td><td class="c num">10</td><td class="c"><span class="cell full">10</span></td><td class="c"><span class="cell full">10</span></td><td class="c"><span class="cell full">10</span></td></tr>
+          <tr><td class="id">BE11</td><td>Crash com <code>kill -9</code> e recuperação</td><td class="c num">10</td><td class="c"><span class="cell full">10</span></td><td class="c"><span class="cell full">10</span></td><td class="c"><span class="cell half">5</span></td></tr>
+          <tr><td class="id">BE12</td><td>CQRS, manutenção, testes e documentação</td><td class="c num">10</td><td class="c"><span class="cell full">10</span></td><td class="c"><span class="cell full">10</span></td><td class="c"><span class="cell full">10</span></td></tr>
+        </tbody>
+        <tfoot><tr><td class="id">Total</td><td></td><td class="c num">100</td><td class="c num">97,5</td><td class="c num">95</td><td class="c num">87,5</td></tr></tfoot>
+      </table>
+    </div>
+    <p>Os três tiraram nota cheia em nove dos doze itens. Os pontos perdidos vieram do signout (BE02), de respostas erradas a entradas inválidas (BE07) e, no DeepSeek, da demora para retomar a Saga depois de um crash (BE11).</p>
+  </div>
+</section>
+
+<section class="entry" id="prd">
+  <header>
+    <div class="eyebrow">PRD</div>
+    <h2>Requisitos do PRD</h2>
+    <p class="note">Requisitos B01 a B10 e seções 7, 8 e 9 do PRD v1.1, com o resultado de cada entrega.</p>
+  </header>
+  <div class="body">
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Requisito</th><th><i class="dot c-glm"></i>GLM</th><th><i class="dot c-muse"></i>Muse</th><th><i class="dot c-ds"></i>DeepSeek</th></tr></thead>
+        <tbody>
+          <tr><td><span class="id">B01, B03 a B09</span><br><small>signup, saldo, contatos, transferência, acompanhamento, idempotência, concorrência e compensação</small></td><td><span class="chip ok"><b>OK</b></span></td><td><span class="chip ok"><b>OK</b></span></td><td><span class="chip ok"><b>OK</b></span></td></tr>
+          <tr><td><span class="id">B02</span><br><small>signin e signout; logout revoga a sessão</small></td><td><span class="chip ok"><b>OK</b></span></td><td><span class="chip part"><b>PARCIAL</b><span>falha com JSON vazio no signout</span></span></td><td><span class="chip no"><b>FALHA</b><span>logout nunca revoga</span></span></td></tr>
+          <tr><td><span class="id">B10</span><br><small>recuperação sem duplicar efeitos</small></td><td><span class="chip ok"><b>OK</b></span></td><td><span class="chip ok"><b>OK</b></span></td><td><span class="chip part"><b>PARCIAL</b><span>correta, porém lenta</span></span></td></tr>
+          <tr><td><span class="id">§7</span><br><small>erros mapeados sem vazar detalhes</small></td><td><span class="chip part"><b>PARCIAL</b><span>JSON malformado vira 500</span></span></td><td><span class="chip part"><b>PARCIAL</b><span>alguns 4xx do Fastify viram 500</span></span></td><td><span class="chip part"><b>PARCIAL</b><span><code>SELF_RECIPIENT</code> no lugar de <code>SELF_TRANSFER</code>; 400 sem <code>details</code></span></span></td></tr>
+          <tr><td><span class="id">§8</span><br><small>transferência terminal em até 5 s</small></td><td><span class="chip ok"><b>OK</b><span class="num">6 ms</span></span></td><td><span class="chip ok"><b>OK</b><span class="num">54 ms</span></span></td><td><span class="chip ok"><b>OK</b><span class="num">156 ms</span></span></td></tr>
+          <tr><td><span class="id">§8</span><br><small>recuperação em até 10 s</small></td><td><span class="chip ok"><b>OK</b><span class="num">366 ms</span></span></td><td><span class="chip ok"><b>OK</b><span class="num">378 ms</span></span></td><td><span class="chip no"><b>FALHA</b><span class="num">29,0 s</span></span></td></tr>
+          <tr><td><span class="id">§8</span><br><small>só testes unitários, com os cenários obrigatórios</small></td><td><span class="chip ok"><b>OK</b><span>203 testes, 29 arquivos</span></span></td><td><span class="chip ok"><b>OK</b><span>132 testes, 29 arquivos</span></span></td><td><span class="chip part"><b>PARCIAL</b><span>90 testes, 11 arquivos, sem teste do worker</span></span></td></tr>
+          <tr><td><span class="id">§9</span><br><small>README, OpenAPI e relatório coerentes com a execução</small></td><td><span class="chip part"><b>PARCIAL</b><span>OpenAPI sem o 403 de Origin; rascunho commitado</span></span></td><td><span class="chip part"><b>PARCIAL</b><span>relatório com contagem e fuso errados</span></span></td><td><span class="chip part"><b>PARCIAL</b><span>README diz que o logout revoga</span></span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="entry" id="saga">
+  <header>
+    <div class="eyebrow">Saga sob crash</div>
+    <h2>Recuperação depois de um crash</h2>
+  </header>
+  <div class="body">
+    <p>No cenário de BE11, a transferência fica pausada depois do débito, o processo morre com <code>kill -9</code> e o servidor volta sobre o mesmo arquivo SQLite. Nas três entregas a Saga retomou e terminou em COMPLETED, com um DEBIT e um CREDIT. O GLM e o Muse retomaram em menos de meio segundo; o DeepSeek levou 29.</p>
+    <div class="bars" role="img" aria-label="Tempo de retomada após kill -9: GLM 0,366 s; Muse 0,378 s; DeepSeek 29,0 s; limite 10 s">
+      <div class="bar-row c-glm"><span class="lbl">GLM 5.3</span><div class="track"><i class="fill" style="width:1.22%"></i><i class="limit" style="left:33.33%"></i></div><span class="val">0,37 s</span></div>
+      <div class="bar-row c-muse"><span class="lbl">Muse Spark 1.3</span><div class="track"><i class="fill" style="width:1.26%"></i><i class="limit" style="left:33.33%"></i></div><span class="val">0,38 s</span></div>
+      <div class="bar-row c-ds"><span class="lbl">DeepSeek V4.1 Flash</span><div class="track"><i class="fill" style="width:96.67%"></i><i class="limit" style="left:33.33%"></i></div><span class="val">29,0 s</span></div>
+      <div class="axis"><span></span><div class="ticks"><span style="left:0">0 s</span><span style="left:33.33%">10 s limite</span><span style="left:66.67%">20 s</span><span style="left:100%">30 s</span></div><span></span></div>
+    </div>
+    <p>A demora do DeepSeek vem do lease de 30 segundos que o worker usa para reivindicar o job. No boot, ele só libera locks vencidos, então espera o lock do processo morto expirar.</p>
+    <div class="ledger">
+      <div><span class="eyebrow">Seed</span><span class="big">125.000</span><small>centavos nas três contas demo</small></div>
+      <div><span class="eyebrow">Depois de cada cenário</span><span class="big">125.000</span><small>saldos mais valor em trânsito, nas três entregas</small></div>
+      <div><span class="eyebrow">Débito ou crédito duplicado</span><span class="big">0</span><small>inclusive com 10 POSTs simultâneos com a mesma chave</small></div>
+    </div>
+  </div>
+</section>
+
+<section class="entry" id="eficiencia">
+  <header>
+    <div class="eyebrow">Eficiência</div>
+    <h2>Tempo, custo e tokens</h2>
+    <p class="note">A rubrica trata esses números à parte da nota. Cada gráfico tem escala própria e começa em zero.</p>
+  </header>
+  <div class="body">
+    <div class="multiples">
+      <div class="mini">
+        <h3>Duração da sessão</h3><div class="sub">minutos</div>
+        <div class="r c-glm"><span>GLM</span><div class="t"><i style="width:82.9%"></i><em class="on">79,3</em></div></div>
+        <div class="r c-muse"><span>Muse</span><div class="t"><i style="width:100%"></i><em class="on">95,7</em></div></div>
+        <div class="r c-ds"><span>DeepSeek</span><div class="t"><i style="width:10.2%"></i><em class="out">9,8</em></div></div>
+      </div>
+      <div class="mini">
+        <h3>Custo total</h3><div class="sub">US$ · GLM estimado</div>
+        <div class="r c-glm"><span>GLM</span><div class="t"><i style="width:31.8%"></i><em class="out">17,05</em></div></div>
+        <div class="r c-muse"><span>Muse</span><div class="t"><i style="width:100%"></i><em class="on">53,62</em></div></div>
+        <div class="r c-ds"><span>DeepSeek</span><div class="t"><i style="width:0.63%"></i><em class="out">0,34</em></div></div>
+      </div>
+      <div class="mini">
+        <h3>Tokens de entrada</h3><div class="sub">milhões</div>
+        <div class="r c-glm"><span>GLM</span><div class="t"><i style="width:55.4%"></i><em class="on">59,8</em></div></div>
+        <div class="r c-muse"><span>Muse</span><div class="t"><i style="width:100%"></i><em class="on">107,9</em></div></div>
+        <div class="r c-ds"><span>DeepSeek</span><div class="t"><i style="width:25.6%"></i><em class="out">27,6</em></div></div>
+      </div>
+      <div class="mini">
+        <h3>Tokens de saída</h3><div class="sub">milhares · parte em reasoning</div>
+        <div class="r c-glm"><span>GLM</span><div class="t"><i style="width:100%"></i><em class="on">184 · 27%</em></div></div>
+        <div class="r c-muse"><span>Muse</span><div class="t"><i style="width:86.4%"></i><em class="on">159 · &lt;3%</em></div></div>
+        <div class="r c-ds"><span>DeepSeek</span><div class="t"><i style="width:65.2%"></i><em class="on">120 · 30%</em></div></div>
+      </div>
+      <div class="mini">
+        <h3>Velocidade de geração</h3><div class="sub">tokens por segundo</div>
+        <div class="r c-glm"><span>GLM</span><div class="t"><i style="width:27.5%"></i><em class="out">77</em></div></div>
+        <div class="r c-muse"><span>Muse</span><div class="t"><i style="width:43.2%"></i><em class="out">121</em></div></div>
+        <div class="r c-ds"><span>DeepSeek</span><div class="t"><i style="width:100%"></i><em class="on">280</em></div></div>
+      </div>
+      <div class="mini">
+        <h3>Tempo até o primeiro token</h3><div class="sub">segundos, mediana</div>
+        <div class="r c-glm"><span>GLM</span><div class="t"><i style="width:100%"></i><em class="on">7,2</em></div></div>
+        <div class="r c-muse"><span>Muse</span><div class="t"><i style="width:62.5%"></i><em class="on">4,5</em></div></div>
+        <div class="r c-ds"><span>DeepSeek</span><div class="t"><i style="width:10%"></i><em class="out">0,72</em></div></div>
+      </div>
+      <div class="mini">
+        <h3>Chamadas ao modelo</h3><div class="sub">total na sessão</div>
+        <div class="r c-glm"><span>GLM</span><div class="t"><i style="width:61.3%"></i><em class="on">341</em></div></div>
+        <div class="r c-muse"><span>Muse</span><div class="t"><i style="width:100%"></i><em class="on">556</em></div></div>
+        <div class="r c-ds"><span>DeepSeek</span><div class="t"><i style="width:35.4%"></i><em class="on">197</em></div></div>
+      </div>
+      <div class="mini">
+        <h3>Cache de prompt</h3><div class="sub">% da entrada lida do cache</div>
+        <div class="r c-glm"><span>GLM</span><div class="t"><i style="width:99%"></i><em class="on">99,0</em></div></div>
+        <div class="r c-muse"><span>Muse</span><div class="t"><i style="width:68.6%"></i><em class="on">68,6</em></div></div>
+        <div class="r c-ds"><span>DeepSeek</span><div class="t"><i style="width:99.5%"></i><em class="on">99,5</em></div></div>
+      </div>
+    </div>
+
+    <figure>
+      <div class="chart">
+        <svg viewBox="0 0 640 320" width="100%" style="min-width:520px" role="img" aria-label="Nota em função do custo, com custo em escala logarítmica">
+          <line class="grid" x1="70" y1="30" x2="600" y2="30"/>
+          <line class="grid" x1="70" y1="90" x2="600" y2="90"/>
+          <line class="grid" x1="70" y1="150" x2="600" y2="150"/>
+          <line class="grid" x1="70" y1="210" x2="600" y2="210"/>
+          <line class="grid" x1="70" y1="30" x2="70" y2="270"/>
+          <line class="grid" x1="246.7" y1="30" x2="246.7" y2="270"/>
+          <line class="grid" x1="423.3" y1="30" x2="423.3" y2="270"/>
+          <line class="grid" x1="600" y1="30" x2="600" y2="270"/>
+          <line class="threshold" x1="70" y1="270" x2="600" y2="270"/>
+          <text x="62" y="34" text-anchor="end">100</text>
+          <text x="62" y="94" text-anchor="end">95</text>
+          <text x="62" y="154" text-anchor="end">90</text>
+          <text x="62" y="214" text-anchor="end">85</text>
+          <text x="62" y="274" text-anchor="end">80</text>
+          <text x="78" y="264">corte de aprovação</text>
+          <text x="70" y="292" text-anchor="middle">US$ 0,10</text>
+          <text x="246.7" y="292" text-anchor="middle">US$ 1</text>
+          <text x="423.3" y="292" text-anchor="middle">US$ 10</text>
+          <text x="600" y="292" text-anchor="end">US$ 100</text>
+          <text x="335" y="314" text-anchor="middle">custo total da sessão (escala logarítmica)</text>
+          <text x="16" y="150" text-anchor="middle" transform="rotate(-90 16 150)">nota</text>
+          <circle class="pt-ds" cx="163.9" cy="180" r="9"/>
+          <text class="lab" x="178" y="185">DeepSeek · 87,5 · US$ 0,34</text>
+          <circle class="ring" cx="464.3" cy="60" r="13"/>
+          <circle class="pt-glm" cx="464.3" cy="60" r="9"/>
+          <text class="lab" x="452" y="44" text-anchor="end">GLM · 97,5 · US$ 17,05</text>
+          <circle class="pt-muse" cx="552.2" cy="90" r="9"/>
+          <text class="lab" x="540" y="118" text-anchor="end">Muse · 95 · US$ 53,62</text>
+        </svg>
+      </div>
+      <figcaption>Nota contra custo. O anel tracejado no GLM marca que o custo dele é uma estimativa. O GLM custou cerca de 50 vezes mais que o DeepSeek e fez 10 pontos a mais. O Muse custou mais que o GLM e ficou 2,5 pontos abaixo.</figcaption>
+    </figure>
+
+    <p>O DeepSeek terminou cerca de 8 vezes mais rápido que o GLM e 10 vezes mais rápido que o Muse, e a mediana até o primeiro token dele foi 0,72 s. O Muse leu 107,9 milhões de tokens de entrada, mais que GLM e DeepSeek juntos, porque o prompt cresceu até 306 mil tokens sem compactação. O cache cobriu 68,6% dessa entrada; sem ele, a sessão custaria US$ 134,95 em vez de US$ 53,62.</p>
+    <p class="note">As velocidades do Muse vêm do CSV do OpenRouter; as do GLM e do DeepSeek, dos horários de streaming gravados pelo OpenCode. O GLM teve 11 chamadas recusadas por limite do plano, todas depois da entrega.</p>
+  </div>
+</section>
+
+<section class="entry" id="defeitos">
+  <header>
+    <div class="eyebrow">Defeitos</div>
+    <h2>Defeitos que custaram pontos</h2>
+    <p class="note">A faixa vermelha marca severidade alta, a âmbar marca média e a cinza, baixa.</p>
+  </header>
+  <div class="body">
+    <div class="defects">
+      <div class="dcol c-glm">
+        <h3><i class="dot"></i>GLM 5.3</h3>
+        <div class="defect media"><span class="sev">Média · BE07</span><p>JSON malformado em qualquer POST responde <code>500 INTERNAL_ERROR</code>. O parser de corpo vazio, registrado no escopo raiz, repassa o <code>SyntaxError</code> sem <code>statusCode</code>.</p></div>
+      </div>
+      <div class="dcol c-muse">
+        <h3><i class="dot"></i>Muse Spark 1.3</h3>
+        <div class="defect media"><span class="sev">Média · BE02</span><p>Signout com <code>Content-Type: application/json</code> e corpo vazio responde 500 e mantém a sessão. O hook troca o corpo por <code>{}</code>, mas o <code>Content-Length</code> continua 0.</p></div>
+      </div>
+      <div class="dcol c-ds">
+        <h3><i class="dot"></i>DeepSeek V4.1 Flash</h3>
+        <div class="defect alta"><span class="sev">Alta · BE02</span><p>A rota de signout não registra o hook de autenticação. O comando de revogação nunca roda, e o token vale por mais 24 h.</p></div>
+        <div class="defect media"><span class="sev">Média · BE11</span><p>Retomada após crash espera o lease de 30 s do job vencer: 29,0 s medidos.</p></div>
+        <div class="defect media"><span class="sev">Média · BE02</span><p>Signout com JSON vazio responde 400 e não limpa o cookie.</p></div>
+        <div class="defect baixa"><span class="sev">Baixa · BE07</span><p>Transferência para a própria conta devolve <code>SELF_RECIPIENT</code>; a função com o código certo existe e nunca é chamada.</p></div>
+      </div>
+    </div>
+    <p>Há também um achado comum às três entregas, de severidade baixa e sem desconto: a validação do corpo roda antes da autenticação, e uma requisição sem sessão com corpo inválido recebe 400 em vez de 401.</p>
+  </div>
+</section>
+
+<section class="entry" id="veredito">
+  <header>
+    <div class="eyebrow">Veredito</div>
+    <h2>Qual escolher</h2>
+  </header>
+  <div class="body">
+    <div class="verdict">
+      <div class="c-glm"><span class="q">Entrega mais correta</span><span class="a">GLM 5.3</span><p>Teve a maior nota e a maior suíte de testes, e foi o único que trabalhou com commits. O que falta corrigir é o mapeamento de um erro.</p></div>
+      <div class="c-ds"><span class="q">Mais rápido e barato</span><span class="a">DeepSeek V4.1 Flash</span><p>Bom para iterar quando alguém vai revisar o código depois. As correções são curtas, mas a do logout é de segurança e precisa vir antes de qualquer uso.</p></div>
+      <div class="c-muse"><span class="q">Segundo em qualidade</span><span class="a">Muse Spark 1.3</span><p>Ficou 2,5 pontos atrás do GLM, com o maior custo e a sessão mais longa das três.</p></div>
+    </div>
+    <ul class="plain">
+      <li>Cada modelo rodou uma vez. A rubrica pede pelo menos três gerações independentes antes de tirar conclusões sobre um modelo, e uma nova rodada pode mudar a ordem.</li>
+      <li>O que se compara aqui é modelo e ferramenta juntos. Todos rodaram no OpenCode, mas Muse e DeepSeek passaram pelo OpenRouter, e o GLM pelo plano de código da z.ai.</li>
+      <li>A avaliação cobre só o backend, no escopo local do PRD, e não diz se alguma entrega está pronta para produção.</li>
+    </ul>
+  </div>
+</section>
+
+<footer>
+  <p>Código, veredito individual e backlog executado de cada modelo estão na branch dele: <a href="https://github.com/ferreirase/muse-spark-test/tree/glm">glm</a>, <a href="https://github.com/ferreirase/muse-spark-test/tree/muse">muse</a> e <a href="https://github.com/ferreirase/muse-spark-test/tree/deepseek">deepseek</a>. A especificação e a rubrica ficam na <a href="https://github.com/ferreirase/muse-spark-test/tree/main">main</a>.</p>
+  <p>Avaliação feita em cópias isoladas, com Node v24.21.0 em Linux x86_64, sem alterar o código dos modelos. Horários em GMT+2.</p>
+</footer>
+
+</div>
+</body>
+</html>
